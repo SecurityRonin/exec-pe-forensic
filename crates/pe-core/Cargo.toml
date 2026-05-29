@@ -1,0 +1,22 @@
+[package]
+name = "pe-core"
+version = "0.1.0"
+description = "PE (Portable Executable) binary format parser for forensic analysis"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+forensicnomicon = { workspace = true }
+goblin          = { workspace = true }
+thiserror       = { workspace = true }
+sha2            = { workspace = true }
+hex             = { workspace = true }
+serde           = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

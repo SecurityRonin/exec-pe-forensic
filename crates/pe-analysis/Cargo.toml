@@ -1,0 +1,17 @@
+[package]
+name = "pe-analysis"
+version = "0.1.0"
+description = "Forensic detectors for PE binaries — suspicious imports, packing, AV exclusions, IOCs"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+pe-core         = { workspace = true }
+forensicnomicon = { workspace = true }
+thiserror       = { workspace = true }
+serde           = { workspace = true }
+
+[lints]
+workspace = true
