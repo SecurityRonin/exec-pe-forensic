@@ -9,7 +9,17 @@ use crate::{PeDetection, PeDetectionKind};
 ///
 /// Returns one [`PeDetection`] per matched import name.
 pub fn detect_suspicious_imports(pe: &PeFile) -> Vec<PeDetection> {
-    todo!()
+    pe.imports
+        .iter()
+        .filter(|imp| SUSPICIOUS_IMPORT_NAMES.contains(&imp.as_str()))
+        .map(|imp| PeDetection {
+            kind: PeDetectionKind::SuspiciousImport,
+            mitre_technique_id: "T1055",
+            tactic: "defense-evasion",
+            description: format!("Suspicious API import: '{imp}'"),
+            evidence: vec![imp.clone()],
+        })
+        .collect()
 }
 
 #[cfg(test)]

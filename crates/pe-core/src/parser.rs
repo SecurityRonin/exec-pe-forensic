@@ -67,14 +67,77 @@ pub struct PeSection {
 /// Returns [`PeError::NotPe`] for non-PE inputs (empty, wrong magic, truncated header).
 /// Returns [`PeError::Structure`] for PEs that pass the magic check but are malformed.
 pub fn parse_pe(bytes: &[u8]) -> Result<PeFile, PeError> {
-    todo!()
+    use forensicnomicon::heuristics::pe::MZ_MAGIC;
+    use goblin::pe::PE;
+    use sha2::{Digest, Sha256};
+
+    if bytes.len() < 2 || bytes[0..2] != MZ_MAGIC {
+        return Err(PeError::NotPe);
+    }
+
+    let pe = PE::parse(bytes).map_err(|e| PeError::Structure(e.to_string()))?;
+
+    let machine = pe.header.coff_header.machine;
+    let compile_timestamp = pe.header.coff_header.time_date_stamp;
+    let characteristics = pe.header.coff_header.characteristics;
+    let is_dll = characteristics & 0x2000 != 0;
+    let is_exe = characteristics & 0x0002 != 0;
+
+    let imports: Vec<String> = pe.imports.iter().map(|i| i.name.to_string()).collect();
+    let exports: Vec<String> = pe.exports.iter()
+        .filter_map(|e| e.name.map(str::to_string))
+        .collect();
+
+    let sections = pe.sections.iter().map(|sec| {
+        let name = String::from_utf8_lossy(&sec.name)
+            .trim_end_matches('\0')
+            .to_string();
+        let offset = sec.pointer_to_raw_data as usize;
+        let raw_size = sec.size_of_raw_data;
+        let data = bytes.get(offset..offset.saturating_add(raw_size as usize)).unwrap_or(&[]);
+        let entropy = crate::strings::compute_entropy(data);
+        PeSection {
+            name,
+            virtual_size: sec.virtual_size,
+            raw_size,
+            virtual_address: sec.virtual_address,
+            entropy,
+            is_executable: sec.characteristics & 0x2000_0000 != 0,
+            is_writable:   sec.characteristics & 0x8000_0000 != 0,
+            is_readable:   sec.characteristics & 0x4000_0000 != 0,
+        }
+    }).collect();
+
+    let ascii_strings = crate::strings::extract_ascii(bytes, crate::strings::MIN_STRING_LEN);
+    let utf16_strings = crate::strings::extract_utf16le(bytes, crate::strings::MIN_STRING_LEN);
+
+    let sha256 = {
+        let mut hasher = Sha256::new();
+        hasher.update(bytes);
+        hex::encode(hasher.finalize())
+    };
+
+    Ok(PeFile {
+        machine,
+        compile_timestamp,
+        is_dll,
+        is_exe,
+        imports,
+        exports,
+        sections,
+        ascii_strings,
+        utf16_strings,
+        sha256,
+        size: bytes.len(),
+    })
 }
 
 /// Parse a PE binary from a file path.
 ///
 /// Reads the entire file into memory then calls [`parse_pe`].
 pub fn parse_pe_path(path: &Path) -> Result<PeFile, PeError> {
-    todo!()
+    let bytes = std::fs::read(path)?;
+    parse_pe(&bytes)
 }
 
 #[cfg(test)]

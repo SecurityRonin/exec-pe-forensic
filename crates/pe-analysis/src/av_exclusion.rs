@@ -14,7 +14,24 @@ use crate::{PeDetection, PeDetectionKind};
 ///
 /// Returns one detection per matched string (deduplicated on fragment).
 pub fn detect_av_exclusion_strings(pe: &PeFile) -> Vec<PeDetection> {
-    todo!()
+    let mut detections = Vec::new();
+    for string in pe.all_strings() {
+        for &fragment in AV_EXCLUSION_PATH_FRAGMENTS {
+            if string.contains(fragment) {
+                detections.push(PeDetection {
+                    kind: PeDetectionKind::AvExclusionStrings,
+                    mitre_technique_id: "T1562.001",
+                    tactic: "defense-evasion",
+                    description: format!(
+                        "AV exclusion fragment '{fragment}' found in PE string table"
+                    ),
+                    evidence: vec![string.to_string()],
+                });
+                break; // one detection per string
+            }
+        }
+    }
+    detections
 }
 
 #[cfg(test)]

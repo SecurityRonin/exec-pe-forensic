@@ -13,7 +13,27 @@ use crate::{PeDetection, PeDetectionKind};
 ///
 /// Returns one detection per suspicious section.
 pub fn detect_packed_pe(pe: &PeFile) -> Vec<PeDetection> {
-    todo!()
+    pe.sections
+        .iter()
+        .filter(|sec| {
+            PACKED_SECTION_NAMES.contains(&sec.name.as_str()) || sec.entropy >= PACKED_SECTION_THRESHOLD
+        })
+        .map(|sec| {
+            let by_name = PACKED_SECTION_NAMES.contains(&sec.name.as_str());
+            PeDetection {
+                kind: PeDetectionKind::PackedExecutable,
+                mitre_technique_id: "T1027.002",
+                tactic: "defense-evasion",
+                description: format!(
+                    "Packed/protected section '{}' (entropy {:.2}{})",
+                    sec.name,
+                    sec.entropy,
+                    if by_name { ", known packer name" } else { "" }
+                ),
+                evidence: vec![sec.name.clone()],
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]

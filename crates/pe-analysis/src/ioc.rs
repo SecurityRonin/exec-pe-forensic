@@ -12,7 +12,22 @@ use crate::{PeDetection, PeDetectionKind};
 ///
 /// High confidence: these strings have no legitimate use in normal software.
 pub fn detect_qwcrypt_pe_iocs(pe: &PeFile) -> Vec<PeDetection> {
-    todo!()
+    let mut detections = Vec::new();
+    for string in pe.all_strings() {
+        for &ioc in QWCRYPT_PE_STRING_IOCS {
+            if string.contains(ioc) {
+                detections.push(PeDetection {
+                    kind: PeDetectionKind::QWCryptPeIoc,
+                    mitre_technique_id: "T1486",
+                    tactic: "impact",
+                    description: format!("QWCrypt/RedCurl IOC '{ioc}' found in PE string table"),
+                    evidence: vec![string.to_string()],
+                });
+                break;
+            }
+        }
+    }
+    detections
 }
 
 #[cfg(test)]

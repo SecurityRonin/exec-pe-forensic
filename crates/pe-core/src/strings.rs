@@ -6,12 +6,49 @@
 /// Minimum string length (in characters) to include in the output.
 pub const MIN_STRING_LEN: usize = 6;
 
+/// Shannon entropy of a byte slice (0.0 – 8.0).
+///
+/// Returns 0.0 for empty slices.
+pub fn compute_entropy(data: &[u8]) -> f32 {
+    if data.is_empty() {
+        return 0.0;
+    }
+    let mut freq = [0u32; 256];
+    for &b in data {
+        freq[b as usize] += 1;
+    }
+    let len = data.len() as f32;
+    let mut entropy = 0.0_f32;
+    for &count in &freq {
+        if count > 0 {
+            let p = count as f32 / len;
+            entropy -= p * p.log2();
+        }
+    }
+    entropy
+}
+
 /// Extract ASCII strings of at least `min_len` consecutive printable chars from `bytes`.
 ///
 /// "Printable" means bytes 0x20 – 0x7E (space through tilde), matching the
 /// behaviour of the classic `strings(1)` utility.
 pub fn extract_ascii(bytes: &[u8], min_len: usize) -> Vec<String> {
-    todo!()
+    let mut results = Vec::new();
+    let mut current = String::new();
+    for &b in bytes {
+        if b >= 0x20 && b <= 0x7E {
+            current.push(b as char);
+        } else {
+            if current.len() >= min_len {
+                results.push(current.clone());
+            }
+            current.clear();
+        }
+    }
+    if current.len() >= min_len {
+        results.push(current);
+    }
+    results
 }
 
 /// Extract UTF-16LE strings of at least `min_len` printable chars from `bytes`.
@@ -20,7 +57,27 @@ pub fn extract_ascii(bytes: &[u8], min_len: usize) -> Vec<String> {
 /// printable ASCII character (0x20 – 0x7E).  This is a fast heuristic; it will
 /// not decode arbitrary Unicode code points outside the ASCII range.
 pub fn extract_utf16le(bytes: &[u8], min_len: usize) -> Vec<String> {
-    todo!()
+    let mut results = Vec::new();
+    let mut current = String::new();
+    let mut i = 0;
+    while i + 1 < bytes.len() {
+        let lo = bytes[i];
+        let hi = bytes[i + 1];
+        if hi == 0x00 && lo >= 0x20 && lo <= 0x7E {
+            current.push(lo as char);
+            i += 2;
+        } else {
+            if current.len() >= min_len {
+                results.push(current.clone());
+            }
+            current.clear();
+            i += 1;
+        }
+    }
+    if current.len() >= min_len {
+        results.push(current);
+    }
+    results
 }
 
 #[cfg(test)]
