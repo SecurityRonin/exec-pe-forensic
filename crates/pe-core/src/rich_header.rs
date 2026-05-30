@@ -44,7 +44,62 @@ pub struct RichHeader {
 /// Searches only within the DOS stub area (offset 0x40 → `e_lfanew`).
 /// Returns `None` if no `Rich` marker is found or if the header is malformed.
 pub fn parse_rich_header(bytes: &[u8]) -> Option<RichHeader> {
-    todo!("implement Rich header parsing")
+    if bytes.len() < 0x40 {
+        return None;
+    }
+
+    // e_lfanew: 4-byte LE u32 at 0x3C — points to the PE signature.
+    let e_lfanew = read_u32_le(bytes, 0x3C)? as usize;
+    if e_lfanew < 0x44 || e_lfanew > bytes.len() {
+        return None;
+    }
+
+    // The Rich header lives between end of standard DOS header (0x40) and e_lfanew.
+    let stub_area = bytes.get(0x40..e_lfanew)?;
+
+    // Locate "Rich" terminator within the stub area.
+    let rich_rel = find_pattern(stub_area, b"Rich")?;
+    let rich_abs = 0x40 + rich_rel;
+
+    // XOR key is the DWORD immediately after "Rich".
+    let xor_key = read_u32_le(bytes, rich_abs + 4)?;
+
+    // Find the XOR-encoded "DanS" (0x536E_6144) marker at the beginning.
+    // We scan the stub area in 4-byte steps.
+    const DANS: u32 = 0x536E_6144;
+    let mut dans_rel: Option<usize> = None;
+    let mut i = 0usize;
+    while i + 4 <= rich_rel {
+        if let Some(raw) = read_u32_le(stub_area, i) {
+            if raw ^ xor_key == DANS {
+                dans_rel = Some(i);
+                break;
+            }
+        }
+        i += 4;
+    }
+    let dans_rel = dans_rel?;
+
+    // Entries start after DanS (4 B) + 3 padding DWORDs (12 B) = 16 bytes.
+    let entries_start = dans_rel + 16;
+    if entries_start > rich_rel {
+        return Some(RichHeader { entries: vec![], xor_key });
+    }
+
+    let mut entries = Vec::new();
+    let mut pos = entries_start;
+    while pos + 8 <= rich_rel {
+        let comp_id = read_u32_le(stub_area, pos)? ^ xor_key;
+        let use_count = read_u32_le(stub_area, pos + 4)? ^ xor_key;
+        entries.push(RichEntry {
+            product_id: (comp_id >> 16) as u16,
+            build_id: (comp_id & 0xFFFF) as u16,
+            use_count,
+        });
+        pos += 8;
+    }
+
+    Some(RichHeader { entries, xor_key })
 }
 
 // ── private helpers (used by both impl and tests) ─────────────────────────────

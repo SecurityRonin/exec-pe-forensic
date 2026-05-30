@@ -57,13 +57,71 @@ pub enum PeAnomaly {
 /// Returns one [`PeAnomaly`] per anomaly found.  An empty `Vec` means the
 /// binary looks structurally normal (not necessarily benign).
 pub fn detect_structural_anomalies(pe: &PeFile) -> Vec<PeAnomaly> {
-    todo!("implement structural anomaly detection")
+    let mut out = Vec::new();
+
+    for sec in &pe.sections {
+        // W+X section — code injection target
+        if sec.is_writable && sec.is_executable {
+            out.push(PeAnomaly::WritableExecutableSection {
+                section_name: sec.name.clone(),
+            });
+        }
+
+        // Virtual-only section (raw_size=0, virtual_size>0) — runtime decompression area
+        if sec.raw_size == 0 && sec.virtual_size > 0 {
+            out.push(PeAnomaly::VirtualOnlySection {
+                section_name: sec.name.clone(),
+            });
+        }
+
+        // Large virtual/raw ratio (> 10×) — indicates decompression
+        if sec.raw_size > 0 {
+            let ratio = sec.virtual_size / sec.raw_size;
+            if ratio > 10 {
+                out.push(PeAnomaly::LargeVirtualToRawRatio {
+                    section_name: sec.name.clone(),
+                    ratio,
+                });
+            }
+        }
+    }
+
+    // Entry point outside all sections (only meaningful when sections exist and EP is non-zero)
+    if pe.entry_point_rva > 0 && !pe.sections.is_empty() {
+        if !entry_point_in_section(pe.entry_point_rva, &pe.sections) {
+            out.push(PeAnomaly::EntryPointOutsideSections {
+                entry_point_rva: pe.entry_point_rva,
+            });
+        }
+    }
+
+    // TLS callbacks registered
+    if pe.tls_callback_count > 0 {
+        out.push(PeAnomaly::TlsCallbacksPresent {
+            count: pe.tls_callback_count,
+        });
+    }
+
+    // Overlay data appended after last section
+    if let (Some(offset), Some(size)) = (pe.overlay_offset, pe.overlay_size) {
+        out.push(PeAnomaly::OverlayPresent { offset, size });
+    }
+
+    // Rich header absent on a binary large enough to have been compiled (> 4 KiB)
+    if pe.rich_header.is_none() && pe.size > 4096 {
+        out.push(PeAnomaly::RichHeaderAbsent);
+    }
+
+    out
 }
 
-/// Return `true` when the entry-point RVA falls within the virtual address
-/// range of at least one section.
+/// Return `true` when `entry_rva` falls within the virtual address range of
+/// at least one section (`[va, va + virtual_size)`).
 pub fn entry_point_in_section(entry_rva: u32, sections: &[PeSection]) -> bool {
-    todo!("implement entry_point_in_section")
+    sections.iter().any(|s| {
+        let end = s.virtual_address.saturating_add(s.virtual_size.max(1));
+        entry_rva >= s.virtual_address && entry_rva < end
+    })
 }
 
 #[cfg(test)]

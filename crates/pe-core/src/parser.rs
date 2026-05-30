@@ -160,23 +160,67 @@ pub fn parse_pe(bytes: &[u8]) -> Result<PeFile, PeError> {
         hex::encode(hasher.finalize())
     };
 
+    // ── Optional header fields ────────────────────────────────────────────────
+    let (entry_point_rva, image_base, checksum) =
+        if let Some(oh) = pe.header.optional_header {
+            (
+                oh.standard_fields.address_of_entry_point,
+                oh.windows_fields.image_base,
+                oh.windows_fields.check_sum,
+            )
+        } else {
+            (0, 0, 0)
+        };
+
+    // ── Data directory presence ───────────────────────────────────────────────
+    let is_dotnet = pe.clr_data.is_some();
+    let tls_callback_count = pe.tls_data.as_ref().map_or(0, |t| t.callbacks.len());
+    let has_reloc = pe.relocation_data.is_some();
+    let is_signed = !pe.certificates.is_empty();
+
+    // ── PDB path from CodeView debug directory ────────────────────────────────
+    let pdb_path = pe.debug_data.as_ref().and_then(|d| {
+        d.codeview_pdb70_debug_info.map(|cv| {
+            String::from_utf8_lossy(cv.filename)
+                .trim_end_matches('\0')
+                .to_string()
+        })
+    });
+
+    // ── Overlay detection ─────────────────────────────────────────────────────
+    let last_section_end: u64 = pe
+        .sections
+        .iter()
+        .filter(|s| s.size_of_raw_data > 0)
+        .map(|s| s.pointer_to_raw_data as u64 + s.size_of_raw_data as u64)
+        .max()
+        .unwrap_or(0);
+    let file_size = bytes.len() as u64;
+    let (overlay_offset, overlay_size) = if last_section_end > 0 && file_size > last_section_end {
+        (Some(last_section_end), Some(file_size - last_section_end))
+    } else {
+        (None, None)
+    };
+
+    // ── Rich header ───────────────────────────────────────────────────────────
+    let rich_header = crate::rich_header::parse_rich_header(bytes);
+
     Ok(PeFile {
         machine,
         compile_timestamp,
         is_dll,
         is_exe,
-        // TODO(GREEN): extract from optional header / data directories
-        entry_point_rva: 0,
-        image_base: 0,
-        checksum: 0,
-        is_dotnet: false,
-        tls_callback_count: 0,
-        has_reloc: false,
-        is_signed: false,
-        pdb_path: None,
-        overlay_offset: None,
-        overlay_size: None,
-        rich_header: None,
+        entry_point_rva,
+        image_base,
+        checksum,
+        is_dotnet,
+        tls_callback_count,
+        has_reloc,
+        is_signed,
+        pdb_path,
+        overlay_offset,
+        overlay_size,
+        rich_header,
         imports,
         exports,
         sections,
