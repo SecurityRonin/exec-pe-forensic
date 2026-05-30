@@ -3,10 +3,12 @@
 use std::path::Path;
 
 use crate::error::PeError;
+use crate::rich_header::RichHeader;
 
 /// All forensically-relevant fields extracted from a PE binary.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PeFile {
+    // ── COFF header ──────────────────────────────────────────────────────────
     /// COFF machine type (0x8664 AMD64, 0x014C x86, 0xAA64 ARM64).
     pub machine: u16,
     /// COFF compile timestamp (Unix seconds; note: frequently zeroed or faked).
@@ -15,16 +17,57 @@ pub struct PeFile {
     pub is_dll: bool,
     /// True when IMAGE_FILE_EXECUTABLE_IMAGE characteristic is set.
     pub is_exe: bool,
+
+    // ── Optional header ───────────────────────────────────────────────────────
+    /// Entry-point as an RVA (relative virtual address from image base).
+    /// Zero for DLLs with no explicit entry point.
+    pub entry_point_rva: u32,
+    /// Preferred load address for the image.
+    pub image_base: u64,
+    /// Optional header `CheckSum` field (0 = not set; OS drivers must have a valid checksum).
+    pub checksum: u32,
+
+    // ── Data-directory presence flags ─────────────────────────────────────────
+    /// True when the CLR runtime header (directory[14]) is present — the binary is a .NET assembly.
+    pub is_dotnet: bool,
+    /// Number of TLS callback functions registered.  > 0 means code runs before the entry point.
+    pub tls_callback_count: usize,
+    /// True when a base-relocation table is present.
+    pub has_reloc: bool,
+    /// True when a non-empty Authenticode certificate table is present.
+    pub is_signed: bool,
+
+    // ── Debug information ─────────────────────────────────────────────────────
+    /// PDB file path embedded in the CodeView debug directory entry.
+    /// Contains the full build-machine path, e.g. `C:\Users\attacker\Desktop\payload.pdb`.
+    pub pdb_path: Option<String>,
+
+    // ── Overlay (data after last section) ─────────────────────────────────────
+    /// File offset where overlay data begins (byte immediately after the last section's raw data).
+    pub overlay_offset: Option<u64>,
+    /// Size of the overlay in bytes.
+    pub overlay_size: Option<u64>,
+
+    // ── Rich header (compiler fingerprint) ───────────────────────────────────
+    /// Decoded Rich header, if present.  `None` means the header was absent or
+    /// deliberately stripped — a potential anti-attribution indicator on large files.
+    pub rich_header: Option<RichHeader>,
+
+    // ── Import / export / section tables ─────────────────────────────────────
     /// Flat list of imported symbol names from all import descriptors.
     pub imports: Vec<String>,
     /// Exported symbol names (populated for DLLs).
     pub exports: Vec<String>,
     /// Section table with per-section attributes and entropy.
     pub sections: Vec<PeSection>,
+
+    // ── String extraction ─────────────────────────────────────────────────────
     /// ASCII strings (≥ 6 printable chars) extracted from all raw data.
     pub ascii_strings: Vec<String>,
     /// UTF-16LE strings (≥ 6 printable chars) extracted from all raw data.
     pub utf16_strings: Vec<String>,
+
+    // ── File-level metadata ───────────────────────────────────────────────────
     /// SHA-256 hash of the full binary (hex-encoded).
     pub sha256: String,
     /// Size of the binary in bytes.
@@ -122,6 +165,18 @@ pub fn parse_pe(bytes: &[u8]) -> Result<PeFile, PeError> {
         compile_timestamp,
         is_dll,
         is_exe,
+        // TODO(GREEN): extract from optional header / data directories
+        entry_point_rva: 0,
+        image_base: 0,
+        checksum: 0,
+        is_dotnet: false,
+        tls_callback_count: 0,
+        has_reloc: false,
+        is_signed: false,
+        pdb_path: None,
+        overlay_offset: None,
+        overlay_size: None,
+        rich_header: None,
         imports,
         exports,
         sections,
@@ -330,5 +385,73 @@ mod tests {
         tmp.write_all(b"this is plain text, not a PE").expect("write");
         let result = parse_pe_path(tmp.path());
         assert!(result.is_err());
+    }
+
+    // ── new field extraction tests (RED: placeholder values fail) ─────────────
+
+    #[test]
+    fn image_base_extracted_from_optional_header() {
+        let bytes = make_minimal_pe_x64(0, false);
+        let pe = parse_pe(&bytes).expect("minimal PE");
+        // make_minimal_pe_x64 sets ImageBase = 0x400000 at offset 0x70.
+        assert_eq!(pe.image_base, 0x0040_0000, "image_base must be extracted from optional header");
+    }
+
+    #[test]
+    fn entry_point_rva_is_zero_for_minimal_pe() {
+        let bytes = make_minimal_pe_x64(0, false);
+        let pe = parse_pe(&bytes).expect("minimal PE");
+        assert_eq!(pe.entry_point_rva, 0, "minimal PE has no entry point");
+    }
+
+    #[test]
+    fn minimal_pe_has_no_dotnet() {
+        let bytes = make_minimal_pe_x64(0, false);
+        let pe = parse_pe(&bytes).expect("minimal PE");
+        assert!(!pe.is_dotnet);
+    }
+
+    #[test]
+    fn minimal_pe_has_zero_tls_callbacks() {
+        let bytes = make_minimal_pe_x64(0, false);
+        let pe = parse_pe(&bytes).expect("minimal PE");
+        assert_eq!(pe.tls_callback_count, 0);
+    }
+
+    #[test]
+    fn minimal_pe_has_no_reloc() {
+        let bytes = make_minimal_pe_x64(0, false);
+        let pe = parse_pe(&bytes).expect("minimal PE");
+        assert!(!pe.has_reloc);
+    }
+
+    #[test]
+    fn minimal_pe_is_unsigned() {
+        let bytes = make_minimal_pe_x64(0, false);
+        let pe = parse_pe(&bytes).expect("minimal PE");
+        assert!(!pe.is_signed);
+    }
+
+    #[test]
+    fn minimal_pe_has_no_pdb_path() {
+        let bytes = make_minimal_pe_x64(0, false);
+        let pe = parse_pe(&bytes).expect("minimal PE");
+        assert!(pe.pdb_path.is_none());
+    }
+
+    #[test]
+    fn minimal_pe_has_no_overlay() {
+        let bytes = make_minimal_pe_x64(0, false);
+        let pe = parse_pe(&bytes).expect("minimal PE");
+        assert!(pe.overlay_offset.is_none());
+        assert!(pe.overlay_size.is_none());
+    }
+
+    #[test]
+    fn minimal_pe_has_no_rich_header() {
+        // Our minimal test PE has no DOS stub code, so no Rich header.
+        let bytes = make_minimal_pe_x64(0, false);
+        let pe = parse_pe(&bytes).expect("minimal PE");
+        assert!(pe.rich_header.is_none());
     }
 }

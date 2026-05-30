@@ -24,9 +24,13 @@
     clippy::cast_precision_loss,
 )]
 
+pub mod anomalies;
 pub mod error;
 pub mod parser;
+pub mod rich_header;
 pub mod strings;
 
+pub use anomalies::{detect_structural_anomalies, PeAnomaly};
 pub use error::PeError;
 pub use parser::{parse_pe, parse_pe_path, PeFile, PeSection};
+pub use rich_header::{parse_rich_header, RichEntry, RichHeader};
