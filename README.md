@@ -31,10 +31,20 @@ for hit in detect_all(&pe) {
 
 | Detection | MITRE ID | Confidence | Signal |
 |-----------|----------|------------|--------|
-| Suspicious API imports | T1055 / T1134 | High | `VirtualAllocEx`, `WriteProcessMemory`, `CreateRemoteThread`, `BCryptEncrypt`, `ShellExecuteW`, raw Winsock, and 55+ more |
-| Packed / protected binary | T1027.002 | High | UPX, MPRESS, Themida, VMProtect, Enigma section names **or** section Shannon entropy ≥ 6.8 |
-| AV exclusion strings | T1562.001 | Medium | Defender, Kaspersky, McAfee, Sophos, ESET, Bitdefender registry path fragments embedded in `.data` / `.rdata` |
-| QWCrypt / RedCurl IOCs | T1486 | High | `.qwCrypt`, `rbcw`, `excludeVM`, `ZAM64`, `zamguard`, `workers.dev` — attribution strings with no legitimate use |
+| Suspicious API imports | T1055 / T1134 | High | `VirtualAllocEx`, `WriteProcessMemory`, `CreateRemoteThread`, `BCryptEncrypt`, `ShellExecuteW`, raw Winsock, 55+ more |
+| Packed / protected binary | T1027.002 | High | UPX, MPRESS, Themida, VMProtect, Enigma section names **or** Shannon entropy ≥ 6.8 |
+| PE structural anomalies | T1027 | Medium–High | W+X sections, EP outside sections, virtual-only sections, large virtual/raw ratio, absent Rich header |
+| Overlay data | T1027.009 | High | Bytes appended after the last section — dropper/second-stage channel |
+| TLS callbacks | T1055.005 | High | Callbacks executing before the PE entry point — anti-debug staging area |
+| Anti-debug API imports | T1622 | Medium | `IsDebuggerPresent`, `NtQueryInformationProcess`, `QueryPerformanceCounter`, `FindWindowA`, timing checks, 25+ more |
+| Process hollowing cluster | T1055.012 | High | ≥ 3 of: `NtUnmapViewOfSection`, `WriteProcessMemory`, `SetThreadContext`, `VirtualAllocEx`, `ResumeThread`, 8 more |
+| Network / C2 strings | T1071.001 | Medium | `http://`, `https://`, `.onion`, `User-Agent:`, `/beacon`, `/implant`, `meterpreter`, `reverse_tcp`, 15+ more |
+| Persistence strings | T1547.001 | High | `CurrentVersion\Run`, `Winlogon\Userinit`, `schtasks /create`, WMI event filters, `AppInit_DLLs`, COM `InprocServer32` |
+| Ransomware strings | T1486 | High | `.wncry`, `.locked`, `HOW_TO_DECRYPT`, `bitcoin`, `monero`, `.onion`, `YOUR_FILES_ARE_ENCRYPTED`, 20+ more |
+| Credential / secret strings | T1552.001 | High | `password=`, `api_key=`, `AKIA` (AWS key prefix), `-----BEGIN`, `Authorization: Bearer`, JWT prefix, DB connection strings |
+| .NET anomalies | T1027 | Medium | Managed binary with native TLS callbacks or overlay — mixed-mode loader / dropper pattern |
+| AV exclusion strings | T1562.001 | Medium | Defender, Kaspersky, McAfee, Sophos, ESET, Bitdefender registry path fragments |
+| QWCrypt / RedCurl IOCs | T1486 | High | `.qwCrypt`, `rbcw`, `excludeVM`, `ZAM64`, `zamguard`, `workers.dev` |
 
 Detections are sorted by MITRE technique ID — output is deterministic and diff-friendly across runs.
 
