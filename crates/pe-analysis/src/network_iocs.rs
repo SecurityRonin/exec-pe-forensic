@@ -1,0 +1,84 @@
+//! Detect network / C2 indicator strings in PE string tables (T1071.001).
+
+use forensicnomicon::heuristics::pe::NETWORK_C2_PATTERNS;
+use pe_core::PeFile;
+
+use crate::{PeDetection, PeDetectionKind};
+
+/// Detect C2 and network-indicator strings embedded in the PE string table.
+///
+/// Matches against [`NETWORK_C2_PATTERNS`]: HTTP/Tor scheme prefixes, embedded
+/// HTTP request templates, common C2 path fragments, and framework-specific strings.
+///
+/// Returns one detection per matched string (one pattern match per string).
+pub fn detect_network_iocs(pe: &PeFile) -> Vec<PeDetection> {
+    todo!("implement network_iocs detector")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_helpers::make_pe;
+
+    #[test]
+    fn http_url_detected() {
+        let pe = make_pe(&[], vec![], &["http://evil.example.com/gate.php"]);
+        let hits = detect_network_iocs(&pe);
+        assert!(!hits.is_empty());
+        assert_eq!(hits[0].kind, PeDetectionKind::NetworkC2String);
+        assert_eq!(hits[0].mitre_technique_id, "T1071.001");
+    }
+
+    #[test]
+    fn https_url_detected() {
+        let pe = make_pe(&[], vec![], &["https://c2.attacker.net/beacon"]);
+        assert!(!detect_network_iocs(&pe).is_empty());
+    }
+
+    #[test]
+    fn onion_address_detected() {
+        let pe = make_pe(&[], vec![], &["abc123.onion/payment"]);
+        assert!(!detect_network_iocs(&pe).is_empty());
+    }
+
+    #[test]
+    fn user_agent_header_detected() {
+        let pe = make_pe(&[], vec![], &["User-Agent: Mozilla/5.0 (compatible)"]);
+        assert!(!detect_network_iocs(&pe).is_empty());
+    }
+
+    #[test]
+    fn meterpreter_string_detected() {
+        let pe = make_pe(&[], vec![], &["meterpreter reverse_tcp payload"]);
+        assert!(!detect_network_iocs(&pe).is_empty());
+    }
+
+    #[test]
+    fn benign_strings_not_detected() {
+        let pe = make_pe(
+            &[],
+            vec![],
+            &[
+                "Loading configuration file...",
+                "Error: file not found",
+                "C:\\Windows\\System32\\notepad.exe",
+            ],
+        );
+        assert!(detect_network_iocs(&pe).is_empty());
+    }
+
+    #[test]
+    fn empty_string_table_not_detected() {
+        let pe = make_pe(&[], vec![], &[]);
+        assert!(detect_network_iocs(&pe).is_empty());
+    }
+
+    #[test]
+    fn evidence_contains_matching_string() {
+        let matching = "https://c2.evil.example/implant";
+        let pe = make_pe(&[], vec![], &[matching]);
+        let hits = detect_network_iocs(&pe);
+        assert!(!hits.is_empty());
+        assert!(hits[0].evidence.iter().any(|e| e.contains("https://")));
+    }
+}
