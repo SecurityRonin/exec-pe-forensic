@@ -36,7 +36,7 @@ pub use overlay::detect_overlay;
 pub use packed::detect_packed_pe;
 pub use persistence::detect_persistence_strings;
 pub use process_hollowing::detect_process_hollowing;
-pub use ransomware::detect_ransomware_strings;
+pub use ransomware::{detect_ransom_note_filenames, detect_ransomware_strings};
 pub use suspicious_imports::detect_suspicious_imports;
 pub use tls_callbacks::detect_tls_callbacks;
 
@@ -63,6 +63,8 @@ pub enum PeDetectionKind {
     PersistenceString,
     /// String matching a ransomware keyword or extension (T1486).
     RansomwareString,
+    /// String matching a known ransom note filename (T1486).
+    RansomNoteFilename,
     /// String matching a hardcoded credential or secret pattern (T1552.001).
     CredentialString,
     /// TLS callback(s) present — pre-entry execution hook (T1055.005).
@@ -101,6 +103,7 @@ pub fn detect_all(pe: &PeFile) -> Vec<PeDetection> {
     results.extend(detect_network_iocs(pe));
     results.extend(detect_persistence_strings(pe));
     results.extend(detect_ransomware_strings(pe));
+    results.extend(detect_ransom_note_filenames(pe));
     results.extend(detect_credential_strings(pe));
     results.extend(detect_tls_callbacks(pe));
     results.extend(detect_overlay(pe));
