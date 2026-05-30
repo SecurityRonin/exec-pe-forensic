@@ -72,6 +72,15 @@ mod tests {
     }
 
     #[test]
+    fn qwcrypt_extension_detected() {
+        // .qwCrypt is the file extension used by RedCurl/QWCrypt ransomware
+        let pe = make_pe(&[], vec![], &["important.docx.qwCrypt"]);
+        let hits = detect_ransomware_strings(&pe);
+        assert!(!hits.is_empty(), ".qwCrypt extension must be detected as ransomware IOC");
+        assert_eq!(hits[0].kind, PeDetectionKind::RansomwareString);
+    }
+
+    #[test]
     fn benign_strings_not_detected() {
         let pe = make_pe(
             &[],

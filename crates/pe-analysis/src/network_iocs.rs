@@ -69,6 +69,14 @@ mod tests {
     }
 
     #[test]
+    fn cloudflare_workers_c2_detected() {
+        // workers.dev is the RedCurl/QWCrypt C2 infrastructure (T1102)
+        let pe = make_pe(&[], vec![], &["https://abc123.workers.dev/tasks"]);
+        let hits = detect_network_iocs(&pe);
+        assert!(!hits.is_empty(), "workers.dev C2 domain must be detected");
+    }
+
+    #[test]
     fn benign_strings_not_detected() {
         let pe = make_pe(
             &[],

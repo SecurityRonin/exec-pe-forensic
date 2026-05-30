@@ -76,6 +76,26 @@ mod tests {
         assert!(!detect_av_exclusion_strings(&pe).is_empty());
     }
 
+    // QWCrypt-specific AV products (Bitdefender report, Mar 2025)
+    #[test]
+    fn malwarebytes_exclusion_detected() {
+        let pe = make_pe(&[], vec![], &["Malwarebytes\\Anti-Malware\\Quarantine"]);
+        let hits = detect_av_exclusion_strings(&pe);
+        assert!(!hits.is_empty(), "Malwarebytes path must be detected (QWCrypt exclusion list)");
+    }
+
+    #[test]
+    fn vipre_exclusion_detected() {
+        let pe = make_pe(&[], vec![], &["VIPRE\\Enterprise\\Definitions"]);
+        assert!(!detect_av_exclusion_strings(&pe).is_empty(), "VIPRE path must be detected");
+    }
+
+    #[test]
+    fn sentinelone_exclusion_detected() {
+        let pe = make_pe(&[], vec![], &["SentinelOne\\Sentinel Agent"]);
+        assert!(!detect_av_exclusion_strings(&pe).is_empty(), "SentinelOne path must be detected");
+    }
+
     #[test]
     fn benign_strings_not_detected() {
         let pe = make_pe(
