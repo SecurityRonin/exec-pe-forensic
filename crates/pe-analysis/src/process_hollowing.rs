@@ -16,7 +16,26 @@ pub const HOLLOWING_CLUSTER_THRESHOLD: usize = 3;
 /// Returns a single detection when the threshold is met, with all matched
 /// API names in `evidence`.  Returns empty when too few matches exist.
 pub fn detect_process_hollowing(pe: &PeFile) -> Vec<PeDetection> {
-    todo!("implement process_hollowing detector")
+    let known: std::collections::HashSet<&str> = PROCESS_HOLLOWING_APIS.iter().copied().collect();
+    let matched: Vec<String> = pe
+        .imports
+        .iter()
+        .filter(|imp| known.contains(imp.as_str()))
+        .cloned()
+        .collect();
+    if matched.len() < HOLLOWING_CLUSTER_THRESHOLD {
+        return vec![];
+    }
+    vec![PeDetection {
+        kind: PeDetectionKind::ProcessHollowing,
+        mitre_technique_id: "T1055.012",
+        tactic: "Defense Evasion",
+        description: format!(
+            "Process hollowing API cluster: {} hollowing-specific imports detected",
+            matched.len()
+        ),
+        evidence: matched,
+    }]
 }
 
 #[cfg(test)]

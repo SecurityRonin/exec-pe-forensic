@@ -15,7 +15,22 @@ use crate::{PeDetection, PeDetectionKind};
 /// Returns one detection per matched string.  High confidence when combined
 /// with mass file-operation API imports and high-entropy sections.
 pub fn detect_ransomware_strings(pe: &PeFile) -> Vec<PeDetection> {
-    todo!("implement ransomware_strings detector")
+    pe.ascii_strings
+        .iter()
+        .chain(pe.utf16_strings.iter())
+        .filter_map(|s| {
+            RANSOMWARE_STRING_PATTERNS
+                .iter()
+                .find(|&&pat| s.contains(pat))
+                .map(|&pat| PeDetection {
+                    kind: PeDetectionKind::RansomwareString,
+                    mitre_technique_id: "T1486",
+                    tactic: "Impact",
+                    description: format!("Ransomware pattern '{pat}' in string"),
+                    evidence: vec![s.clone()],
+                })
+        })
+        .collect()
 }
 
 #[cfg(test)]

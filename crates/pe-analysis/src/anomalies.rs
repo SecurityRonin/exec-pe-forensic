@@ -19,7 +19,52 @@ use crate::{PeDetection, PeDetectionKind};
 /// - Overlay present (appended payload after last section)
 /// - Rich header absent on binary > 4 KiB (compiler fingerprint stripped)
 pub fn detect_pe_anomalies(pe: &PeFile) -> Vec<PeDetection> {
-    todo!("implement pe_anomalies detector")
+    detect_structural_anomalies(pe)
+        .into_iter()
+        .map(|anomaly| {
+            let (description, evidence) = describe_anomaly(&anomaly);
+            PeDetection {
+                kind: PeDetectionKind::PeStructuralAnomaly,
+                mitre_technique_id: "T1027",
+                tactic: "Defense Evasion",
+                description,
+                evidence,
+            }
+        })
+        .collect()
+}
+
+fn describe_anomaly(anomaly: &PeAnomaly) -> (String, Vec<String>) {
+    match anomaly {
+        PeAnomaly::WritableExecutableSection { section_name } => (
+            format!("W+X section '{section_name}' — writable and executable (packer staging area)"),
+            vec![section_name.clone()],
+        ),
+        PeAnomaly::EntryPointOutsideSections { entry_point_rva } => (
+            format!("Entry point {entry_point_rva:#010x} is outside all PE sections"),
+            vec![format!("entry_point_rva={entry_point_rva:#010x}")],
+        ),
+        PeAnomaly::VirtualOnlySection { section_name } => (
+            format!("Section '{section_name}' has zero raw size — in-memory decompression target"),
+            vec![section_name.clone()],
+        ),
+        PeAnomaly::LargeVirtualToRawRatio { section_name, ratio } => (
+            format!("Section '{section_name}' virtual/raw ratio {ratio}× — high in-memory expansion"),
+            vec![format!("{section_name}: virtual/raw ratio={ratio}")],
+        ),
+        PeAnomaly::TlsCallbacksPresent { count } => (
+            format!("{count} TLS callback(s) — execution before the PE entry point"),
+            vec![format!("{count} TLS callback(s) in TLS directory")],
+        ),
+        PeAnomaly::OverlayPresent { offset, size } => (
+            format!("Overlay: {size} bytes at file offset {offset:#x}"),
+            vec![format!("overlay offset={offset:#x} size={size}")],
+        ),
+        PeAnomaly::RichHeaderAbsent => (
+            "Rich header absent — compiler fingerprint stripped (anti-attribution)".to_string(),
+            vec!["no Rich header found in DOS stub area".to_string()],
+        ),
+    }
 }
 
 #[cfg(test)]

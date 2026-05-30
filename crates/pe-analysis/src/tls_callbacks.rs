@@ -12,7 +12,19 @@ use crate::{PeDetection, PeDetectionKind};
 ///
 /// Returns a single detection when `pe.tls_callback_count > 0`.
 pub fn detect_tls_callbacks(pe: &PeFile) -> Vec<PeDetection> {
-    todo!("implement tls_callbacks detector")
+    if pe.tls_callback_count == 0 {
+        return vec![];
+    }
+    let n = pe.tls_callback_count;
+    vec![PeDetection {
+        kind: PeDetectionKind::TlsCallbackPresent,
+        mitre_technique_id: "T1055.005",
+        tactic: "Defense Evasion",
+        description: format!(
+            "{n} TLS callback(s) registered — code executes before the PE entry point"
+        ),
+        evidence: vec![format!("{n} TLS callback(s) registered in the TLS directory")],
+    }]
 }
 
 #[cfg(test)]

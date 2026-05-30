@@ -12,7 +12,22 @@ use crate::{PeDetection, PeDetectionKind};
 ///
 /// Returns one detection per matched string (one pattern match per string).
 pub fn detect_network_iocs(pe: &PeFile) -> Vec<PeDetection> {
-    todo!("implement network_iocs detector")
+    pe.ascii_strings
+        .iter()
+        .chain(pe.utf16_strings.iter())
+        .filter_map(|s| {
+            NETWORK_C2_PATTERNS
+                .iter()
+                .find(|&&pat| s.contains(pat))
+                .map(|&pat| PeDetection {
+                    kind: PeDetectionKind::NetworkC2String,
+                    mitre_technique_id: "T1071.001",
+                    tactic: "Command and Control",
+                    description: format!("C2/network pattern '{pat}' in string"),
+                    evidence: vec![s.clone()],
+                })
+        })
+        .collect()
 }
 
 #[cfg(test)]

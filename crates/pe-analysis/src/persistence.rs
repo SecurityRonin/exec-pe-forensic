@@ -13,7 +13,22 @@ use crate::{PeDetection, PeDetectionKind};
 ///
 /// Returns one detection per matched string.
 pub fn detect_persistence_strings(pe: &PeFile) -> Vec<PeDetection> {
-    todo!("implement persistence_strings detector")
+    pe.ascii_strings
+        .iter()
+        .chain(pe.utf16_strings.iter())
+        .filter_map(|s| {
+            PERSISTENCE_STRING_PATTERNS
+                .iter()
+                .find(|&&pat| s.contains(pat))
+                .map(|&pat| PeDetection {
+                    kind: PeDetectionKind::PersistenceString,
+                    mitre_technique_id: "T1547.001",
+                    tactic: "Persistence",
+                    description: format!("Persistence pattern '{pat}' in string"),
+                    evidence: vec![s.clone()],
+                })
+        })
+        .collect()
 }
 
 #[cfg(test)]

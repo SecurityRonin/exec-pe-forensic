@@ -16,7 +16,34 @@ use crate::{PeDetection, PeDetectionKind};
 /// Returns one detection per suspicious combination.  A clean .NET binary without
 /// these characteristics produces no detections.
 pub fn detect_dotnet_anomalies(pe: &PeFile) -> Vec<PeDetection> {
-    todo!("implement dotnet_anomalies detector")
+    if !pe.is_dotnet {
+        return vec![];
+    }
+    let mut results = Vec::new();
+    if pe.tls_callback_count > 0 {
+        let n = pe.tls_callback_count;
+        results.push(PeDetection {
+            kind: PeDetectionKind::DotNetAnomaly,
+            mitre_technique_id: "T1027",
+            tactic: "Defense Evasion",
+            description: format!(
+                "Managed .NET binary has {n} native TLS callback(s) — mixed-mode anti-debug shim"
+            ),
+            evidence: vec![format!("{n} native TLS callback(s) alongside CLR data directory")],
+        });
+    }
+    if let (Some(offset), Some(size)) = (pe.overlay_offset, pe.overlay_size) {
+        results.push(PeDetection {
+            kind: PeDetectionKind::DotNetAnomaly,
+            mitre_technique_id: "T1027",
+            tactic: "Defense Evasion",
+            description: format!(
+                "Managed .NET binary has {size} bytes overlay at {offset:#x} — dropper channel"
+            ),
+            evidence: vec![format!("overlay_offset={offset:#x} size={size} in .NET binary")],
+        });
+    }
+    results
 }
 
 #[cfg(test)]

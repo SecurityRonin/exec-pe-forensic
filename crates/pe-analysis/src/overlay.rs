@@ -13,7 +13,19 @@ use crate::{PeDetection, PeDetectionKind};
 ///
 /// Returns a single detection when `pe.overlay_offset` is `Some`.
 pub fn detect_overlay(pe: &PeFile) -> Vec<PeDetection> {
-    todo!("implement overlay detector")
+    let (offset, size) = match (pe.overlay_offset, pe.overlay_size) {
+        (Some(off), Some(sz)) => (off, sz),
+        _ => return vec![],
+    };
+    vec![PeDetection {
+        kind: PeDetectionKind::OverlayDetected,
+        mitre_technique_id: "T1027.009",
+        tactic: "Defense Evasion",
+        description: format!(
+            "Overlay: {size} bytes appended at offset {offset:#x} — possible embedded payload"
+        ),
+        evidence: vec![format!("overlay_offset={offset:#x} overlay_size={size} bytes")],
+    }]
 }
 
 #[cfg(test)]

@@ -10,7 +10,18 @@ use crate::{PeDetection, PeDetectionKind};
 /// Individual hits are informational; three or more distinct anti-debug
 /// imports on the same binary are a strong evasion signal.
 pub fn detect_anti_debug(pe: &PeFile) -> Vec<PeDetection> {
-    todo!("implement anti_debug detector")
+    let known: std::collections::HashSet<&str> = ANTI_DEBUG_IMPORT_NAMES.iter().copied().collect();
+    pe.imports
+        .iter()
+        .filter(|imp| known.contains(imp.as_str()))
+        .map(|imp| PeDetection {
+            kind: PeDetectionKind::AntiDebugImport,
+            mitre_technique_id: "T1622",
+            tactic: "Defense Evasion",
+            description: format!("Anti-debug API imported: {imp}"),
+            evidence: vec![imp.clone()],
+        })
+        .collect()
 }
 
 #[cfg(test)]

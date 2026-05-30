@@ -13,7 +13,22 @@ use crate::{PeDetection, PeDetectionKind};
 ///
 /// Returns one detection per matched string.
 pub fn detect_credential_strings(pe: &PeFile) -> Vec<PeDetection> {
-    todo!("implement credential_strings detector")
+    pe.ascii_strings
+        .iter()
+        .chain(pe.utf16_strings.iter())
+        .filter_map(|s| {
+            CREDENTIAL_PATTERNS
+                .iter()
+                .find(|&&pat| s.contains(pat))
+                .map(|&pat| PeDetection {
+                    kind: PeDetectionKind::CredentialString,
+                    mitre_technique_id: "T1552.001",
+                    tactic: "Credential Access",
+                    description: format!("Credential pattern '{pat}' in string"),
+                    evidence: vec![s.clone()],
+                })
+        })
+        .collect()
 }
 
 #[cfg(test)]

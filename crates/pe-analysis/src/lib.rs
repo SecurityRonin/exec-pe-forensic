@@ -96,6 +96,16 @@ pub fn detect_all(pe: &PeFile) -> Vec<PeDetection> {
     results.extend(detect_packed_pe(pe));
     results.extend(detect_av_exclusion_strings(pe));
     results.extend(detect_qwcrypt_pe_iocs(pe));
+    results.extend(detect_anti_debug(pe));
+    results.extend(detect_process_hollowing(pe));
+    results.extend(detect_network_iocs(pe));
+    results.extend(detect_persistence_strings(pe));
+    results.extend(detect_ransomware_strings(pe));
+    results.extend(detect_credential_strings(pe));
+    results.extend(detect_tls_callbacks(pe));
+    results.extend(detect_overlay(pe));
+    results.extend(detect_pe_anomalies(pe));
+    results.extend(detect_dotnet_anomalies(pe));
     results.sort_by_key(|d| d.mitre_technique_id);
     results
 }
