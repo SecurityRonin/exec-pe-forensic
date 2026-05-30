@@ -44,7 +44,26 @@ pub fn detect_ransomware_strings(pe: &PeFile) -> Vec<PeDetection> {
 ///
 /// Returns one detection per matching string.
 pub fn detect_ransom_note_filenames(pe: &PeFile) -> Vec<PeDetection> {
-    todo!()
+    pe.ascii_strings
+        .iter()
+        .chain(pe.utf16_strings.iter())
+        .filter_map(|s| {
+            let base = string_basename(s);
+            let base_lower = base.to_lowercase();
+            RANSOM_NOTE_FILENAMES
+                .iter()
+                .find(|&&note| note.to_lowercase() == base_lower)
+                .map(|&matched| PeDetection {
+                    kind: PeDetectionKind::RansomNoteFilename,
+                    mitre_technique_id: "T1486",
+                    tactic: "Impact",
+                    description: format!(
+                        "Ransom note filename '{matched}' found in PE string table"
+                    ),
+                    evidence: vec![s.clone()],
+                })
+        })
+        .collect()
 }
 
 fn string_basename(s: &str) -> &str {
