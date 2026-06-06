@@ -8,6 +8,7 @@
 //! All functions are pure (no I/O).  The caller provides a fully-parsed
 //! [`PeFile`] from [`crate::parser::parse_pe`].
 
+use forensicnomicon::report::{Category, Evidence, Location, Observation, Severity};
 use crate::parser::{PeFile, PeSection};
 
 /// A structural anomaly found in a PE binary.
@@ -123,6 +124,125 @@ pub fn entry_point_in_section(entry_rva: u32, sections: &[PeSection]) -> bool {
         entry_rva >= s.virtual_address && entry_rva < end
     })
 }
+
+impl Observation for PeAnomaly {
+    fn severity(&self) -> Option<Severity> {
+        use PeAnomaly::{
+            EntryPointOutsideSections, LargeVirtualToRawRatio, OverlayPresent, RichHeaderAbsent,
+            TlsCallbacksPresent, VirtualOnlySection, WritableExecutableSection,
+        };
+        Some(match self {
+            EntryPointOutsideSections { .. } => Severity::High,
+            WritableExecutableSection { .. }
+            | VirtualOnlySection { .. }
+            | LargeVirtualToRawRatio { .. } => Severity::Medium,
+            TlsCallbacksPresent { .. } | OverlayPresent { .. } | RichHeaderAbsent => Severity::Low,
+        })
+    }
+
+    fn category(&self) -> Category {
+        use PeAnomaly::{OverlayPresent, RichHeaderAbsent, TlsCallbacksPresent};
+        match self {
+            TlsCallbacksPresent { .. } | RichHeaderAbsent => Category::Concealment,
+            OverlayPresent { .. } => Category::Residue,
+            _ => Category::Structure,
+        }
+    }
+
+    fn code(&self) -> &'static str {
+        use PeAnomaly::{
+            EntryPointOutsideSections, LargeVirtualToRawRatio, OverlayPresent, RichHeaderAbsent,
+            TlsCallbacksPresent, VirtualOnlySection, WritableExecutableSection,
+        };
+        match self {
+            WritableExecutableSection { .. } => "PE-WX-SECTION",
+            EntryPointOutsideSections { .. } => "PE-ENTRYPOINT-OOB",
+            VirtualOnlySection { .. } => "PE-VIRTUAL-ONLY-SECTION",
+            LargeVirtualToRawRatio { .. } => "PE-VSIZE-RATIO",
+            TlsCallbacksPresent { .. } => "PE-TLS-CALLBACKS",
+            OverlayPresent { .. } => "PE-OVERLAY",
+            RichHeaderAbsent => "PE-RICH-ABSENT",
+        }
+    }
+
+    fn note(&self) -> String {
+        use PeAnomaly::{
+            EntryPointOutsideSections, LargeVirtualToRawRatio, OverlayPresent, RichHeaderAbsent,
+            TlsCallbacksPresent, VirtualOnlySection, WritableExecutableSection,
+        };
+        match self {
+            WritableExecutableSection { section_name } => {
+                format!("section '{section_name}' is both writable and executable (W+X)")
+            }
+            EntryPointOutsideSections { entry_point_rva } => {
+                format!("entry-point RVA {entry_point_rva:#x} falls outside every defined section")
+            }
+            VirtualOnlySection { section_name } => {
+                format!("section '{section_name}' has zero raw size but a non-zero virtual size")
+            }
+            LargeVirtualToRawRatio { section_name, ratio } => {
+                format!("section '{section_name}' virtual size exceeds its raw size by ~{ratio}x")
+            }
+            TlsCallbacksPresent { count } => {
+                format!("{count} TLS callback(s) execute before the entry point")
+            }
+            OverlayPresent { offset, size } => {
+                format!("{size} bytes of overlay data appended after the last section at {offset:#x}")
+            }
+            RichHeaderAbsent => {
+                "no Rich header in the DOS stub — consistent with anti-attribution stripping"
+                    .to_string()
+            }
+        }
+    }
+
+    fn mitre(&self) -> &'static [&'static str] {
+        use PeAnomaly::{
+            EntryPointOutsideSections, LargeVirtualToRawRatio, OverlayPresent, RichHeaderAbsent,
+            TlsCallbacksPresent, VirtualOnlySection, WritableExecutableSection,
+        };
+        match self {
+            WritableExecutableSection { .. } | EntryPointOutsideSections { .. } => &["T1055"],
+            TlsCallbacksPresent { .. } => &["T1055.005"],
+            VirtualOnlySection { .. } | LargeVirtualToRawRatio { .. } => &["T1027.002"],
+            RichHeaderAbsent => &["T1027"],
+            OverlayPresent { .. } => &[],
+        }
+    }
+
+    fn evidence(&self) -> Vec<Evidence> {
+        use PeAnomaly::{
+            EntryPointOutsideSections, LargeVirtualToRawRatio, OverlayPresent, RichHeaderAbsent,
+            TlsCallbacksPresent, VirtualOnlySection, WritableExecutableSection,
+        };
+        let ev = |field: &str, value: String, location: Option<Location>| Evidence {
+            field: field.to_string(),
+            value,
+            location,
+        };
+        match self {
+            WritableExecutableSection { section_name } | VirtualOnlySection { section_name } => {
+                vec![ev("section", section_name.clone(), None)]
+            }
+            EntryPointOutsideSections { entry_point_rva } => vec![ev(
+                "entry_point_rva",
+                format!("{entry_point_rva:#x}"),
+                Some(Location::Rva(u64::from(*entry_point_rva))),
+            )],
+            LargeVirtualToRawRatio { section_name, ratio } => vec![
+                ev("section", section_name.clone(), None),
+                ev("ratio", ratio.to_string(), None),
+            ],
+            TlsCallbacksPresent { count } => vec![ev("count", count.to_string(), None)],
+            OverlayPresent { offset, size } => vec![
+                ev("size", size.to_string(), None),
+                ev("offset", format!("{offset:#x}"), Some(Location::ByteOffset(*offset))),
+            ],
+            RichHeaderAbsent => Vec::new(),
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
