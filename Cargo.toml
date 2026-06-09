@@ -18,7 +18,7 @@ pe-core     = { path = "crates/pe-core" }
 pe-analysis = { path = "crates/pe-analysis" }
 
 # Knowledge layer (sibling repo)
-forensicnomicon = { path = "../forensicnomicon" }
+forensicnomicon = "0.3.1"
 
 # PE parsing
 goblin = { version = "0.10", default-features = false, features = ["pe32", "pe64", "std"] }
