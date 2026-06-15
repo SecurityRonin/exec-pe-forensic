@@ -1,6 +1,6 @@
 [![Crates.io](https://img.shields.io/crates/v/pe-core.svg)](https://crates.io/crates/pe-core)
 [![Docs.rs](https://img.shields.io/docsrs/pe-core)](https://docs.rs/pe-core)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/SecurityRonin/exec-pe-forensic/actions/workflows/ci.yml/badge.svg)](https://github.com/SecurityRonin/exec-pe-forensic/actions)
 [![Sponsor](https://img.shields.io/badge/sponsor-h4x0r-pink)](https://github.com/sponsors/h4x0r)
 
