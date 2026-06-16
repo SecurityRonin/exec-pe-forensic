@@ -1,7 +1,7 @@
 //! Detect AV exclusion path/registry fragments in PE string tables (T1562.001).
 
+use exec_pe_core::PeFile;
 use forensicnomicon::heuristics::pe::AV_EXCLUSION_PATH_FRAGMENTS;
-use pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 
@@ -66,7 +66,11 @@ mod tests {
 
     #[test]
     fn mcafee_path_detected() {
-        let pe = make_pe(&[], vec![], &["McAfee\\Endpoint Security\\Threat Prevention"]);
+        let pe = make_pe(
+            &[],
+            vec![],
+            &["McAfee\\Endpoint Security\\Threat Prevention"],
+        );
         assert!(!detect_av_exclusion_strings(&pe).is_empty());
     }
 
@@ -81,19 +85,28 @@ mod tests {
     fn malwarebytes_exclusion_detected() {
         let pe = make_pe(&[], vec![], &["Malwarebytes\\Anti-Malware\\Quarantine"]);
         let hits = detect_av_exclusion_strings(&pe);
-        assert!(!hits.is_empty(), "Malwarebytes path must be detected (QWCrypt exclusion list)");
+        assert!(
+            !hits.is_empty(),
+            "Malwarebytes path must be detected (QWCrypt exclusion list)"
+        );
     }
 
     #[test]
     fn vipre_exclusion_detected() {
         let pe = make_pe(&[], vec![], &["VIPRE\\Enterprise\\Definitions"]);
-        assert!(!detect_av_exclusion_strings(&pe).is_empty(), "VIPRE path must be detected");
+        assert!(
+            !detect_av_exclusion_strings(&pe).is_empty(),
+            "VIPRE path must be detected"
+        );
     }
 
     #[test]
     fn sentinelone_exclusion_detected() {
         let pe = make_pe(&[], vec![], &["SentinelOne\\Sentinel Agent"]);
-        assert!(!detect_av_exclusion_strings(&pe).is_empty(), "SentinelOne path must be detected");
+        assert!(
+            !detect_av_exclusion_strings(&pe).is_empty(),
+            "SentinelOne path must be detected"
+        );
     }
 
     #[test]

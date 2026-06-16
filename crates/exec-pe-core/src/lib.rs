@@ -6,7 +6,7 @@
 //! # Quick start
 //!
 //! ```rust,no_run
-//! use pe_core::{parse_pe, PeFile};
+//! use exec_pe_core::{parse_pe, PeFile};
 //!
 //! let bytes = std::fs::read("rbcw.exe").unwrap();
 //! let pe = parse_pe(&bytes).expect("valid PE");
@@ -21,7 +21,7 @@
     clippy::must_use_candidate,
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
-    clippy::cast_precision_loss,
+    clippy::cast_precision_loss
 )]
 
 pub mod anomalies;

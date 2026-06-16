@@ -127,29 +127,37 @@ pub fn parse_pe(bytes: &[u8]) -> Result<PeFile, PeError> {
     let is_exe = characteristics & 0x0002 != 0;
 
     let imports: Vec<String> = pe.imports.iter().map(|i| i.name.to_string()).collect();
-    let exports: Vec<String> = pe.exports.iter()
+    let exports: Vec<String> = pe
+        .exports
+        .iter()
         .filter_map(|e| e.name.map(str::to_string))
         .collect();
 
-    let sections = pe.sections.iter().map(|sec| {
-        let name = String::from_utf8_lossy(&sec.name)
-            .trim_end_matches('\0')
-            .to_string();
-        let offset = sec.pointer_to_raw_data as usize;
-        let raw_size = sec.size_of_raw_data;
-        let data = bytes.get(offset..offset.saturating_add(raw_size as usize)).unwrap_or(&[]);
-        let entropy = crate::strings::compute_entropy(data);
-        PeSection {
-            name,
-            virtual_size: sec.virtual_size,
-            raw_size,
-            virtual_address: sec.virtual_address,
-            entropy,
-            is_executable: sec.characteristics & 0x2000_0000 != 0,
-            is_writable:   sec.characteristics & 0x8000_0000 != 0,
-            is_readable:   sec.characteristics & 0x4000_0000 != 0,
-        }
-    }).collect();
+    let sections = pe
+        .sections
+        .iter()
+        .map(|sec| {
+            let name = String::from_utf8_lossy(&sec.name)
+                .trim_end_matches('\0')
+                .to_string();
+            let offset = sec.pointer_to_raw_data as usize;
+            let raw_size = sec.size_of_raw_data;
+            let data = bytes
+                .get(offset..offset.saturating_add(raw_size as usize))
+                .unwrap_or(&[]);
+            let entropy = crate::strings::compute_entropy(data);
+            PeSection {
+                name,
+                virtual_size: sec.virtual_size,
+                raw_size,
+                virtual_address: sec.virtual_address,
+                entropy,
+                is_executable: sec.characteristics & 0x2000_0000 != 0,
+                is_writable: sec.characteristics & 0x8000_0000 != 0,
+                is_readable: sec.characteristics & 0x4000_0000 != 0,
+            }
+        })
+        .collect();
 
     let ascii_strings = crate::strings::extract_ascii(bytes, crate::strings::MIN_STRING_LEN);
     let utf16_strings = crate::strings::extract_utf16le(bytes, crate::strings::MIN_STRING_LEN);
@@ -161,16 +169,15 @@ pub fn parse_pe(bytes: &[u8]) -> Result<PeFile, PeError> {
     };
 
     // ── Optional header fields ────────────────────────────────────────────────
-    let (entry_point_rva, image_base, checksum) =
-        if let Some(oh) = pe.header.optional_header {
-            (
-                oh.standard_fields.address_of_entry_point,
-                oh.windows_fields.image_base,
-                oh.windows_fields.check_sum,
-            )
-        } else {
-            (0, 0, 0)
-        };
+    let (entry_point_rva, image_base, checksum) = if let Some(oh) = pe.header.optional_header {
+        (
+            oh.standard_fields.address_of_entry_point,
+            oh.windows_fields.image_base,
+            oh.windows_fields.check_sum,
+        )
+    } else {
+        (0, 0, 0)
+    };
 
     // ── Data directory presence ───────────────────────────────────────────────
     let is_dotnet = pe.clr_data.is_some();
@@ -249,20 +256,23 @@ pub(crate) mod test_helpers {
         let mut pe = vec![0u8; 512];
 
         // DOS header
-        pe[0] = b'M'; pe[1] = b'Z';
+        pe[0] = b'M';
+        pe[1] = b'Z';
         pe[0x3C] = 0x40; // e_lfanew = 64
 
         // PE signature at 0x40
-        pe[0x40] = b'P'; pe[0x41] = b'E';
+        pe[0x40] = b'P';
+        pe[0x41] = b'E';
 
         // COFF header at 0x44 (20 bytes)
-        pe[0x44] = 0x64; pe[0x45] = 0x86;          // Machine = AMD64
+        pe[0x44] = 0x64;
+        pe[0x45] = 0x86; // Machine = AMD64
         pe[0x48..0x4C].copy_from_slice(&timestamp.to_le_bytes()); // TimeDateStamp
-        pe[0x54] = 0xF0;                             // SizeOfOptionalHeader = 240
-        // Characteristics: bit 1 = EXE, bit 5 = large addr, bit 13 = DLL
+        pe[0x54] = 0xF0; // SizeOfOptionalHeader = 240
+                         // Characteristics: bit 1 = EXE, bit 5 = large addr, bit 13 = DLL
         pe[0x56] = if is_dll { 0x22 | 0x20 } else { 0x22 }; // 0x22 = exe+large, 0x20 = DLL... wait
-        // Actually: IMAGE_FILE_EXECUTABLE_IMAGE = 0x0002, IMAGE_FILE_LARGE_ADDRESS_AWARE = 0x0020
-        // IMAGE_FILE_DLL = 0x2000
+                                                            // Actually: IMAGE_FILE_EXECUTABLE_IMAGE = 0x0002, IMAGE_FILE_LARGE_ADDRESS_AWARE = 0x0020
+                                                            // IMAGE_FILE_DLL = 0x2000
         if is_dll {
             let chars: u16 = 0x2022; // DLL | EXECUTABLE | LARGE_ADDRESS_AWARE
             pe[0x56..0x58].copy_from_slice(&chars.to_le_bytes());
@@ -272,31 +282,44 @@ pub(crate) mod test_helpers {
         }
 
         // Optional header (PE32+) at 0x58 (240 bytes)
-        pe[0x58] = 0x0B; pe[0x59] = 0x02;    // Magic = PE32+
-        // ImageBase (u64) at 0x58+24 = 0x70
-        pe[0x70] = 0x00; pe[0x71] = 0x00; pe[0x72] = 0x40; // 0x400000
-        // SectionAlignment at 0x78
-        pe[0x78] = 0x00; pe[0x79] = 0x10;    // 0x1000
-        // FileAlignment at 0x7C
-        pe[0x7C] = 0x00; pe[0x7D] = 0x02;    // 0x200
-        // MajorSubsystemVersion at 0x88
+        pe[0x58] = 0x0B;
+        pe[0x59] = 0x02; // Magic = PE32+
+                         // ImageBase (u64) at 0x58+24 = 0x70
+        pe[0x70] = 0x00;
+        pe[0x71] = 0x00;
+        pe[0x72] = 0x40; // 0x400000
+                         // SectionAlignment at 0x78
+        pe[0x78] = 0x00;
+        pe[0x79] = 0x10; // 0x1000
+                         // FileAlignment at 0x7C
+        pe[0x7C] = 0x00;
+        pe[0x7D] = 0x02; // 0x200
+                         // MajorSubsystemVersion at 0x88
         pe[0x88] = 0x06;
         // SizeOfImage at 0x90
-        pe[0x90] = 0x00; pe[0x91] = 0x10;    // 0x1000
-        // SizeOfHeaders at 0x94
-        pe[0x94] = 0x00; pe[0x95] = 0x02;    // 0x200
-        // Subsystem at 0x9C: 2 = GUI
+        pe[0x90] = 0x00;
+        pe[0x91] = 0x10; // 0x1000
+                         // SizeOfHeaders at 0x94
+        pe[0x94] = 0x00;
+        pe[0x95] = 0x02; // 0x200
+                         // Subsystem at 0x9C: 2 = GUI
         pe[0x9C] = 0x02;
         // SizeOfStackReserve at 0xA0
-        pe[0xA0] = 0x00; pe[0xA1] = 0x00; pe[0xA2] = 0x10; // 0x100000
-        // SizeOfStackCommit at 0xA8
-        pe[0xA8] = 0x00; pe[0xA9] = 0x10;    // 0x1000
-        // SizeOfHeapReserve at 0xB0
-        pe[0xB0] = 0x00; pe[0xB1] = 0x00; pe[0xB2] = 0x10; // 0x100000
-        // SizeOfHeapCommit at 0xB8
-        pe[0xB8] = 0x00; pe[0xB9] = 0x10;    // 0x1000
-        // NumberOfRvaAndSizes at 0xC4
-        pe[0xC4] = 0x10;                      // 16 data directories
+        pe[0xA0] = 0x00;
+        pe[0xA1] = 0x00;
+        pe[0xA2] = 0x10; // 0x100000
+                         // SizeOfStackCommit at 0xA8
+        pe[0xA8] = 0x00;
+        pe[0xA9] = 0x10; // 0x1000
+                         // SizeOfHeapReserve at 0xB0
+        pe[0xB0] = 0x00;
+        pe[0xB1] = 0x00;
+        pe[0xB2] = 0x10; // 0x100000
+                         // SizeOfHeapCommit at 0xB8
+        pe[0xB8] = 0x00;
+        pe[0xB9] = 0x10; // 0x1000
+                         // NumberOfRvaAndSizes at 0xC4
+        pe[0xC4] = 0x10; // 16 data directories
 
         pe
     }
@@ -338,7 +361,8 @@ mod tests {
     #[test]
     fn rejects_mz_with_no_pe_sig() {
         let mut buf = vec![0u8; 64];
-        buf[0] = b'M'; buf[1] = b'Z';
+        buf[0] = b'M';
+        buf[1] = b'Z';
         buf[0x3C] = 0x40; // e_lfanew points beyond buffer
         assert!(parse_pe(&buf).is_err());
     }
@@ -426,7 +450,8 @@ mod tests {
     fn parse_pe_path_non_pe_file_returns_not_pe() {
         use std::io::Write;
         let mut tmp = tempfile::NamedTempFile::new().expect("tmp file");
-        tmp.write_all(b"this is plain text, not a PE").expect("write");
+        tmp.write_all(b"this is plain text, not a PE")
+            .expect("write");
         let result = parse_pe_path(tmp.path());
         assert!(result.is_err());
     }
@@ -438,7 +463,10 @@ mod tests {
         let bytes = make_minimal_pe_x64(0, false);
         let pe = parse_pe(&bytes).expect("minimal PE");
         // make_minimal_pe_x64 sets ImageBase = 0x400000 at offset 0x70.
-        assert_eq!(pe.image_base, 0x0040_0000, "image_base must be extracted from optional header");
+        assert_eq!(
+            pe.image_base, 0x0040_0000,
+            "image_base must be extracted from optional header"
+        );
     }
 
     #[test]

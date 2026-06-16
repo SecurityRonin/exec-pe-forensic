@@ -1,8 +1,8 @@
 //! Detect packed / protected PE binaries (T1027.002).
 
+use exec_pe_core::PeFile;
 use forensicnomicon::heuristics::entropy::PACKED_SECTION_THRESHOLD;
 use forensicnomicon::heuristics::pe::PACKED_SECTION_NAMES;
-use pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 
@@ -16,7 +16,8 @@ pub fn detect_packed_pe(pe: &PeFile) -> Vec<PeDetection> {
     pe.sections
         .iter()
         .filter(|sec| {
-            PACKED_SECTION_NAMES.contains(&sec.name.as_str()) || sec.entropy >= PACKED_SECTION_THRESHOLD
+            PACKED_SECTION_NAMES.contains(&sec.name.as_str())
+                || sec.entropy >= PACKED_SECTION_THRESHOLD
         })
         .map(|sec| {
             let by_name = PACKED_SECTION_NAMES.contains(&sec.name.as_str());
@@ -73,14 +74,20 @@ mod tests {
         // Entropy 7.5 > threshold even without a packer name
         let pe = make_pe(&[], vec![make_section(".text", 7.5, true)], &[]);
         let hits = detect_packed_pe(&pe);
-        assert!(!hits.is_empty(), "high entropy .text must trigger detection");
+        assert!(
+            !hits.is_empty(),
+            "high entropy .text must trigger detection"
+        );
     }
 
     #[test]
     fn normal_entropy_normal_name_not_detected() {
         let pe = make_pe(
             &[],
-            vec![make_section(".text", 5.2, true), make_section(".data", 3.1, false)],
+            vec![
+                make_section(".text", 5.2, true),
+                make_section(".data", 3.1, false),
+            ],
             &[],
         );
         assert!(detect_packed_pe(&pe).is_empty());
@@ -108,7 +115,11 @@ mod tests {
 
     #[test]
     fn section_at_exactly_threshold_detected() {
-        let pe = make_pe(&[], vec![make_section(".text", PACKED_SECTION_THRESHOLD, true)], &[]);
+        let pe = make_pe(
+            &[],
+            vec![make_section(".text", PACKED_SECTION_THRESHOLD, true)],
+            &[],
+        );
         assert!(!detect_packed_pe(&pe).is_empty());
     }
 

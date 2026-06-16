@@ -1,6 +1,6 @@
 //! Detect suspicious .NET CLR characteristics in PE binaries (T1027).
 
-use pe_core::PeFile;
+use exec_pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 
@@ -29,7 +29,9 @@ pub fn detect_dotnet_anomalies(pe: &PeFile) -> Vec<PeDetection> {
             description: format!(
                 "Managed .NET binary has {n} native TLS callback(s) — mixed-mode anti-debug shim"
             ),
-            evidence: vec![format!("{n} native TLS callback(s) alongside CLR data directory")],
+            evidence: vec![format!(
+                "{n} native TLS callback(s) alongside CLR data directory"
+            )],
         });
     }
     if let (Some(offset), Some(size)) = (pe.overlay_offset, pe.overlay_size) {
@@ -40,7 +42,9 @@ pub fn detect_dotnet_anomalies(pe: &PeFile) -> Vec<PeDetection> {
             description: format!(
                 "Managed .NET binary has {size} bytes overlay at {offset:#x} — dropper channel"
             ),
-            evidence: vec![format!("overlay_offset={offset:#x} size={size} in .NET binary")],
+            evidence: vec![format!(
+                "overlay_offset={offset:#x} size={size} in .NET binary"
+            )],
         });
     }
     results
@@ -51,7 +55,7 @@ mod tests {
     use super::*;
     use crate::test_helpers::make_pe;
 
-    fn make_dotnet_pe() -> pe_core::PeFile {
+    fn make_dotnet_pe() -> exec_pe_core::PeFile {
         let mut pe = make_pe(&[], vec![], &[]);
         pe.is_dotnet = true;
         pe

@@ -101,7 +101,10 @@ mod tests {
             strings.iter().all(|s| s.len() >= 6),
             "all returned strings must be >= min_len chars"
         );
-        assert!(!strings.iter().any(|s| s == "AB"), "two-char run must be filtered");
+        assert!(
+            !strings.iter().any(|s| s == "AB"),
+            "two-char run must be filtered"
+        );
     }
 
     #[test]
@@ -138,9 +141,15 @@ mod tests {
     #[test]
     fn utf16le_extracts_simple_string() {
         // "Hello" as UTF-16LE
-        let input: Vec<u8> = "Hello!".encode_utf16().flat_map(|c| c.to_le_bytes()).collect();
+        let input: Vec<u8> = "Hello!"
+            .encode_utf16()
+            .flat_map(|c| c.to_le_bytes())
+            .collect();
         let strings = extract_utf16le(&input, 6);
-        assert!(strings.contains(&"Hello!".to_string()), "UTF-16LE 'Hello!' must be extracted");
+        assert!(
+            strings.contains(&"Hello!".to_string()),
+            "UTF-16LE 'Hello!' must be extracted"
+        );
     }
 
     #[test]

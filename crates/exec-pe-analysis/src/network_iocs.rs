@@ -1,7 +1,7 @@
 //! Detect network / C2 indicator strings in PE string tables (T1071.001).
 
+use exec_pe_core::PeFile;
 use forensicnomicon::heuristics::pe::NETWORK_C2_PATTERNS;
-use pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 

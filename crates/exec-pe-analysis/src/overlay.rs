@@ -1,6 +1,6 @@
 //! Detect appended overlay data in PE files (T1027.009).
 
-use pe_core::PeFile;
+use exec_pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 
@@ -24,7 +24,9 @@ pub fn detect_overlay(pe: &PeFile) -> Vec<PeDetection> {
         description: format!(
             "Overlay: {size} bytes appended at offset {offset:#x} — possible embedded payload"
         ),
-        evidence: vec![format!("overlay_offset={offset:#x} overlay_size={size} bytes")],
+        evidence: vec![format!(
+            "overlay_offset={offset:#x} overlay_size={size} bytes"
+        )],
     }]
 }
 
@@ -33,7 +35,7 @@ mod tests {
     use super::*;
     use crate::test_helpers::make_pe;
 
-    fn make_pe_with_overlay(offset: u64, size: u64) -> pe_core::PeFile {
+    fn make_pe_with_overlay(offset: u64, size: u64) -> exec_pe_core::PeFile {
         let mut pe = make_pe(&[], vec![], &[]);
         pe.overlay_offset = Some(offset);
         pe.overlay_size = Some(size);
@@ -75,7 +77,9 @@ mod tests {
         assert!(!hits.is_empty());
         let combined = [hits[0].description.as_str(), &hits[0].evidence.join(" ")].join(" ");
         assert!(
-            combined.contains("2048") || combined.contains("2 KiB") || combined.contains("2048 bytes"),
+            combined.contains("2048")
+                || combined.contains("2 KiB")
+                || combined.contains("2048 bytes"),
             "description or evidence must mention overlay size"
         );
     }

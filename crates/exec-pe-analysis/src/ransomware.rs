@@ -1,8 +1,8 @@
 //! Detect ransomware-specific string patterns in PE string tables (T1486).
 
+use exec_pe_core::PeFile;
 use forensicnomicon::heuristics::pe::RANSOMWARE_STRING_PATTERNS;
 use forensicnomicon::heuristics::ransomware::RANSOM_NOTE_FILENAMES;
-use pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 
@@ -98,7 +98,11 @@ mod tests {
 
     #[test]
     fn onion_address_detected() {
-        let pe = make_pe(&[], vec![], &["Visit xyz123abc.onion for payment instructions"]);
+        let pe = make_pe(
+            &[],
+            vec![],
+            &["Visit xyz123abc.onion for payment instructions"],
+        );
         assert!(!detect_ransomware_strings(&pe).is_empty());
     }
 
@@ -113,7 +117,10 @@ mod tests {
         // .qwCrypt is the file extension used by RedCurl/QWCrypt ransomware
         let pe = make_pe(&[], vec![], &["important.docx.qwCrypt"]);
         let hits = detect_ransomware_strings(&pe);
-        assert!(!hits.is_empty(), ".qwCrypt extension must be detected as ransomware IOC");
+        assert!(
+            !hits.is_empty(),
+            ".qwCrypt extension must be detected as ransomware IOC"
+        );
         assert_eq!(hits[0].kind, PeDetectionKind::RansomwareString);
     }
 
@@ -204,7 +211,8 @@ mod tests {
     #[test]
     fn utf16_ransom_note_detected() {
         let mut pe = make_pe(&[], vec![], &[]);
-        pe.utf16_strings.push("C:\\ProgramData\\_readme.txt".to_string());
+        pe.utf16_strings
+            .push("C:\\ProgramData\\_readme.txt".to_string());
         assert!(!detect_ransom_note_filenames(&pe).is_empty());
     }
 }

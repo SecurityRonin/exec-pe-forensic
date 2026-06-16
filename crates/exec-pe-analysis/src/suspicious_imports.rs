@@ -1,7 +1,7 @@
 //! Detect suspicious API imports (T1055 / T1134 / T1059).
 
+use exec_pe_core::PeFile;
 use forensicnomicon::heuristics::pe::SUSPICIOUS_IMPORT_NAMES;
-use pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 
@@ -52,7 +52,12 @@ mod tests {
     #[test]
     fn multiple_suspicious_imports_each_produce_finding() {
         let pe = make_pe(
-            &["VirtualAllocEx", "WriteProcessMemory", "CreateRemoteThread", "OpenProcess"],
+            &[
+                "VirtualAllocEx",
+                "WriteProcessMemory",
+                "CreateRemoteThread",
+                "OpenProcess",
+            ],
             vec![],
             &[],
         );
@@ -63,7 +68,13 @@ mod tests {
     #[test]
     fn benign_file_api_not_detected() {
         let pe = make_pe(
-            &["CreateFile", "ReadFile", "WriteFile", "CloseHandle", "GetLastError"],
+            &[
+                "CreateFile",
+                "ReadFile",
+                "WriteFile",
+                "CloseHandle",
+                "GetLastError",
+            ],
             vec![],
             &[],
         );
@@ -78,7 +89,11 @@ mod tests {
 
     #[test]
     fn crypto_api_detected() {
-        let pe = make_pe(&["BCryptEncrypt", "BCryptGenerateSymmetricKey"], vec![], &[]);
+        let pe = make_pe(
+            &["BCryptEncrypt", "BCryptGenerateSymmetricKey"],
+            vec![],
+            &[],
+        );
         let hits = detect_suspicious_imports(&pe);
         assert!(!hits.is_empty(), "BCrypt encryption API must be detected");
     }

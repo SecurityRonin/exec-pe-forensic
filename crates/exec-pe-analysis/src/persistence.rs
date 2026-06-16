@@ -1,7 +1,7 @@
 //! Detect persistence mechanism strings in PE data sections (T1547 / T1543).
 
+use exec_pe_core::PeFile;
 use forensicnomicon::heuristics::pe::PERSISTENCE_STRING_PATTERNS;
-use pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 
@@ -73,7 +73,11 @@ mod tests {
 
     #[test]
     fn wmi_event_filter_detected() {
-        let pe = make_pe(&[], vec![], &["SELECT * FROM __EventFilter WHERE TargetInstance"]);
+        let pe = make_pe(
+            &[],
+            vec![],
+            &["SELECT * FROM __EventFilter WHERE TargetInstance"],
+        );
         assert!(!detect_persistence_strings(&pe).is_empty());
     }
 
@@ -94,7 +98,11 @@ mod tests {
         let pe = make_pe(
             &[],
             vec![],
-            &["Hello World", "Loading plugin...", "C:\\Program Files\\App\\app.exe"],
+            &[
+                "Hello World",
+                "Loading plugin...",
+                "C:\\Program Files\\App\\app.exe",
+            ],
         );
         assert!(detect_persistence_strings(&pe).is_empty());
     }
@@ -104,6 +112,9 @@ mod tests {
         let pe = make_pe(&[], vec![], &["CurrentVersion\\Run\\MyMalware = evil.exe"]);
         let hits = detect_persistence_strings(&pe);
         assert!(!hits.is_empty());
-        assert!(hits[0].evidence.iter().any(|e| e.contains("CurrentVersion\\Run")));
+        assert!(hits[0]
+            .evidence
+            .iter()
+            .any(|e| e.contains("CurrentVersion\\Run")));
     }
 }

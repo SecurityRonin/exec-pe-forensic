@@ -1,13 +1,13 @@
 //! Forensic detectors for Portable Executable (PE) binaries.
 //!
-//! All detectors accept a parsed [`pe_core::PeFile`] and return a `Vec<PeDetection>`.
+//! All detectors accept a parsed [`exec_pe_core::PeFile`] and return a `Vec<PeDetection>`.
 //! They are pure functions with no I/O — medium-agnostic by construction.
 
 #![allow(
     clippy::doc_markdown,
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
-    clippy::must_use_candidate,
+    clippy::must_use_candidate
 )]
 
 pub mod anomalies;
@@ -40,7 +40,7 @@ pub use ransomware::{detect_ransom_note_filenames, detect_ransomware_strings};
 pub use suspicious_imports::detect_suspicious_imports;
 pub use tls_callbacks::detect_tls_callbacks;
 
-use pe_core::PeFile;
+use exec_pe_core::PeFile;
 
 /// Category of a PE-level detection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -115,13 +115,9 @@ pub fn detect_all(pe: &PeFile) -> Vec<PeDetection> {
 
 #[cfg(test)]
 pub(crate) mod test_helpers {
-    use pe_core::parser::{PeFile, PeSection};
+    use exec_pe_core::parser::{PeFile, PeSection};
 
-    pub fn make_pe(
-        imports: &[&str],
-        sections: Vec<PeSection>,
-        strings: &[&str],
-    ) -> PeFile {
+    pub fn make_pe(imports: &[&str], sections: Vec<PeSection>, strings: &[&str]) -> PeFile {
         PeFile {
             machine: 0x8664,
             compile_timestamp: 0x5F00_0000,
@@ -206,7 +202,8 @@ mod tests {
         let pe = make_pe(&["IsDebuggerPresent"], vec![], &[]);
         let hits = detect_all(&pe);
         assert!(
-            hits.iter().any(|h| h.kind == PeDetectionKind::AntiDebugImport),
+            hits.iter()
+                .any(|h| h.kind == PeDetectionKind::AntiDebugImport),
             "detect_all must include anti_debug results"
         );
     }
@@ -217,7 +214,8 @@ mod tests {
         pe.tls_callback_count = 1;
         let hits = detect_all(&pe);
         assert!(
-            hits.iter().any(|h| h.kind == PeDetectionKind::TlsCallbackPresent),
+            hits.iter()
+                .any(|h| h.kind == PeDetectionKind::TlsCallbackPresent),
             "detect_all must include tls_callbacks results"
         );
     }
@@ -227,7 +225,8 @@ mod tests {
         let pe = make_pe(&[], vec![], &["https://c2.evil.example/implant"]);
         let hits = detect_all(&pe);
         assert!(
-            hits.iter().any(|h| h.kind == PeDetectionKind::NetworkC2String),
+            hits.iter()
+                .any(|h| h.kind == PeDetectionKind::NetworkC2String),
             "detect_all must include network_iocs results"
         );
     }

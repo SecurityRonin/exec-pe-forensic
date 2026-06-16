@@ -83,7 +83,10 @@ pub fn parse_rich_header(bytes: &[u8]) -> Option<RichHeader> {
     // Entries start after DanS (4 B) + 3 padding DWORDs (12 B) = 16 bytes.
     let entries_start = dans_rel + 16;
     if entries_start > rich_rel {
-        return Some(RichHeader { entries: vec![], xor_key });
+        return Some(RichHeader {
+            entries: vec![],
+            xor_key,
+        });
     }
 
     let mut entries = Vec::new();
@@ -196,7 +199,11 @@ mod tests {
     #[test]
     fn parses_multiple_entries_in_order() {
         let key = 0x1234_5678_u32;
-        let expected = [(0x0001, 0x6B00, 1), (0x010C, 0x6B1A, 12), (0x0103, 0x6B6B, 42)];
+        let expected = [
+            (0x0001, 0x6B00, 1),
+            (0x010C, 0x6B1A, 12),
+            (0x0103, 0x6B6B, 42),
+        ];
         let buf = make_pe_with_rich(&expected, key);
         let rh = parse_rich_header(&buf).expect("Rich header must be found");
         assert_eq!(rh.entries.len(), 3);

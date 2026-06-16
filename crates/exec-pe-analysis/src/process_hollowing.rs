@@ -1,7 +1,7 @@
 //! Detect process hollowing API cluster (T1055.012).
 
+use exec_pe_core::PeFile;
 use forensicnomicon::heuristics::pe::PROCESS_HOLLOWING_APIS;
-use pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 
@@ -46,7 +46,12 @@ mod tests {
     #[test]
     fn full_hollowing_cluster_detected() {
         let pe = make_pe(
-            &["NtUnmapViewOfSection", "WriteProcessMemory", "SetThreadContext", "ResumeThread"],
+            &[
+                "NtUnmapViewOfSection",
+                "WriteProcessMemory",
+                "SetThreadContext",
+                "ResumeThread",
+            ],
             vec![],
             &[],
         );
@@ -69,7 +74,11 @@ mod tests {
     #[test]
     fn exactly_at_threshold_detected() {
         let pe = make_pe(
-            &["NtUnmapViewOfSection", "WriteProcessMemory", "SetThreadContext"],
+            &[
+                "NtUnmapViewOfSection",
+                "WriteProcessMemory",
+                "SetThreadContext",
+            ],
             vec![],
             &[],
         );
@@ -89,21 +98,35 @@ mod tests {
     #[test]
     fn evidence_contains_all_matched_apis() {
         let pe = make_pe(
-            &["NtUnmapViewOfSection", "WriteProcessMemory", "SetThreadContext", "ResumeThread"],
+            &[
+                "NtUnmapViewOfSection",
+                "WriteProcessMemory",
+                "SetThreadContext",
+                "ResumeThread",
+            ],
             vec![],
             &[],
         );
         let hits = detect_process_hollowing(&pe);
         assert!(!hits.is_empty());
         assert!(hits[0].evidence.len() >= 3);
-        assert!(hits[0].evidence.iter().any(|e| e.contains("NtUnmapViewOfSection")));
+        assert!(hits[0]
+            .evidence
+            .iter()
+            .any(|e| e.contains("NtUnmapViewOfSection")));
     }
 
     #[test]
     fn returns_single_detection_for_cluster() {
         let pe = make_pe(
-            &["NtUnmapViewOfSection", "ZwUnmapViewOfSection", "WriteProcessMemory",
-              "SetThreadContext", "ResumeThread", "VirtualAllocEx"],
+            &[
+                "NtUnmapViewOfSection",
+                "ZwUnmapViewOfSection",
+                "WriteProcessMemory",
+                "SetThreadContext",
+                "ResumeThread",
+                "VirtualAllocEx",
+            ],
             vec![],
             &[],
         );

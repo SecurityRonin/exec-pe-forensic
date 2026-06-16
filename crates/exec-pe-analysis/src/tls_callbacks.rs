@@ -1,6 +1,6 @@
 //! Detect TLS (Thread Local Storage) callbacks in PE binaries (T1055.005).
 
-use pe_core::PeFile;
+use exec_pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 
@@ -23,7 +23,9 @@ pub fn detect_tls_callbacks(pe: &PeFile) -> Vec<PeDetection> {
         description: format!(
             "{n} TLS callback(s) registered — code executes before the PE entry point"
         ),
-        evidence: vec![format!("{n} TLS callback(s) registered in the TLS directory")],
+        evidence: vec![format!(
+            "{n} TLS callback(s) registered in the TLS directory"
+        )],
     }]
 }
 
@@ -32,7 +34,7 @@ mod tests {
     use super::*;
     use crate::test_helpers::make_pe;
 
-    fn make_pe_with_tls(count: usize) -> pe_core::PeFile {
+    fn make_pe_with_tls(count: usize) -> exec_pe_core::PeFile {
         let mut pe = make_pe(&[], vec![], &[]);
         pe.tls_callback_count = count;
         pe

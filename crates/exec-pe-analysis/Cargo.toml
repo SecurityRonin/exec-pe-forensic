@@ -1,5 +1,5 @@
 [package]
-name = "pe-analysis"
+name = "exec-pe-analysis"
 version = "0.1.0"
 description = "Forensic detectors for PE binaries — suspicious imports, packing, AV exclusions, IOCs"
 edition.workspace = true
@@ -8,7 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-pe-core         = { workspace = true }
+exec-pe-core    = { workspace = true }
 forensicnomicon = { workspace = true }
 thiserror       = { workspace = true }
 serde           = { workspace = true }

@@ -1,7 +1,7 @@
 //! Detect anti-debugging API imports (T1622).
 
+use exec_pe_core::PeFile;
 use forensicnomicon::heuristics::pe::ANTI_DEBUG_IMPORT_NAMES;
-use pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 
@@ -74,6 +74,9 @@ mod tests {
         let pe = make_pe(&["NtQueryInformationProcess"], vec![], &[]);
         let hits = detect_anti_debug(&pe);
         assert!(!hits.is_empty());
-        assert!(hits[0].evidence.iter().any(|e| e.contains("NtQueryInformationProcess")));
+        assert!(hits[0]
+            .evidence
+            .iter()
+            .any(|e| e.contains("NtQueryInformationProcess")));
     }
 }

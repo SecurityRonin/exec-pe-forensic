@@ -1,7 +1,7 @@
 //! Detect hardcoded credential and secret patterns in PE string tables (T1552.001).
 
+use exec_pe_core::PeFile;
 use forensicnomicon::heuristics::pe::CREDENTIAL_PATTERNS;
-use pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 

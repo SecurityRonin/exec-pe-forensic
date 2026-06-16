@@ -1,5 +1,5 @@
-[![Crates.io](https://img.shields.io/crates/v/pe-core.svg)](https://crates.io/crates/pe-core)
-[![Docs.rs](https://img.shields.io/docsrs/pe-core)](https://docs.rs/pe-core)
+[![Crates.io](https://img.shields.io/crates/v/exec-pe-core.svg)](https://crates.io/crates/exec-pe-core)
+[![Docs.rs](https://img.shields.io/docsrs/exec-pe-core)](https://docs.rs/exec-pe-core)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/SecurityRonin/exec-pe-forensic/actions/workflows/ci.yml/badge.svg)](https://github.com/SecurityRonin/exec-pe-forensic/actions)
 [![Sponsor](https://img.shields.io/badge/sponsor-h4x0r-pink)](https://github.com/sponsors/h4x0r)
@@ -7,8 +7,8 @@
 **Parse a Windows PE binary and get MITRE-tagged forensic detections in three lines of Rust.**
 
 ```rust
-use pe_core::parser::parse_pe_path;
-use pe_analysis::detect_all;
+use exec_pe_core::parser::parse_pe_path;
+use exec_pe_analysis::detect_all;
 
 let pe = parse_pe_path("suspicious.exe")?;
 for hit in detect_all(&pe) {
@@ -54,11 +54,11 @@ Detections are sorted by MITRE technique ID — output is deterministic and diff
 
 ```toml
 [dependencies]
-pe-core     = "0.1"
-pe-analysis = "0.1"
+exec-pe-core     = "0.1"
+exec-pe-analysis = "0.1"
 ```
 
-The two crates are intentionally separate. `pe-core` is a zero-IO, medium-agnostic parser: it accepts `&[u8]` or a file path and returns a `PeFile` struct. `pe-analysis` contains the detectors; they are pure functions over `&PeFile` with no I/O of their own. You can use `pe-core` alone if you only need structured PE metadata.
+The two crates are intentionally separate. `exec-pe-core` is a zero-IO, medium-agnostic parser: it accepts `&[u8]` or a file path and returns a `PeFile` struct. `exec-pe-analysis` contains the detectors; they are pure functions over `&PeFile` with no I/O of their own. You can use `exec-pe-core` alone if you only need structured PE metadata.
 
 ---
 
@@ -97,10 +97,10 @@ pub struct PeSection {
 
 ```
 exec-pe-forensic
-├── pe-core        PARSER layer — accepts &[u8] or Path, no CONTAINER/FS dependencies
+├── exec-pe-core        PARSER layer — accepts &[u8] or Path, no CONTAINER/FS dependencies
 │   ├── parser     goblin::pe::PE → PeFile struct (imports, sections, strings, SHA-256)
 │   └── strings    extract_ascii / extract_utf16le / compute_entropy
-└── pe-analysis    detectors — pure fn(&PeFile) -> Vec<PeDetection>
+└── exec-pe-analysis    detectors — pure fn(&PeFile) -> Vec<PeDetection>
     ├── suspicious_imports   SUSPICIOUS_IMPORT_NAMES from forensicnomicon
     ├── packed               PACKED_SECTION_NAMES + entropy threshold
     ├── av_exclusion         AV_EXCLUSION_PATH_FRAGMENTS from forensicnomicon

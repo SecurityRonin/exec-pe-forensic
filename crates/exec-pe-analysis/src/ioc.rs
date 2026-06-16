@@ -1,7 +1,7 @@
 //! QWCrypt / RedCurl PE IOC detection.
 
+use exec_pe_core::PeFile;
 use forensicnomicon::heuristics::pe::QWCRYPT_PE_STRING_IOCS;
-use pe_core::PeFile;
 
 use crate::{PeDetection, PeDetectionKind};
 
@@ -73,7 +73,10 @@ mod tests {
         let pe = make_pe(
             &["CreateFile", "ReadFile"],
             vec![],
-            &["C:\\Program Files\\MyApp\\app.exe", "Loading configuration..."],
+            &[
+                "C:\\Program Files\\MyApp\\app.exe",
+                "Loading configuration...",
+            ],
         );
         assert!(detect_qwcrypt_pe_iocs(&pe).is_empty());
     }

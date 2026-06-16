@@ -1,12 +1,12 @@
-//! Wrap pe_core structural anomaly detection into PeDetection records (T1027).
+//! Wrap exec_pe_core structural anomaly detection into PeDetection records (T1027).
 
-use pe_core::{detect_structural_anomalies, PeAnomaly, PeFile};
+use exec_pe_core::{detect_structural_anomalies, PeAnomaly, PeFile};
 
 use crate::{PeDetection, PeDetectionKind};
 
 /// Detect structural PE anomalies indicating obfuscation, packing, or evasion.
 ///
-/// Delegates to [`pe_core::detect_structural_anomalies`] and maps each
+/// Delegates to [`exec_pe_core::detect_structural_anomalies`] and maps each
 /// [`PeAnomaly`] to a [`PeDetection`] with kind [`PeDetectionKind::PeStructuralAnomaly`]
 /// and MITRE technique T1027 (Obfuscated Files or Information).
 ///
@@ -48,8 +48,13 @@ fn describe_anomaly(anomaly: &PeAnomaly) -> (String, Vec<String>) {
             format!("Section '{section_name}' has zero raw size — in-memory decompression target"),
             vec![section_name.clone()],
         ),
-        PeAnomaly::LargeVirtualToRawRatio { section_name, ratio } => (
-            format!("Section '{section_name}' virtual/raw ratio {ratio}× — high in-memory expansion"),
+        PeAnomaly::LargeVirtualToRawRatio {
+            section_name,
+            ratio,
+        } => (
+            format!(
+                "Section '{section_name}' virtual/raw ratio {ratio}× — high in-memory expansion"
+            ),
             vec![format!("{section_name}: virtual/raw ratio={ratio}")],
         ),
         PeAnomaly::TlsCallbacksPresent { count } => (
@@ -71,7 +76,7 @@ fn describe_anomaly(anomaly: &PeAnomaly) -> (String, Vec<String>) {
 mod tests {
     use super::*;
     use crate::test_helpers::{make_pe, make_section};
-    use pe_core::parser::PeSection;
+    use exec_pe_core::parser::PeSection;
 
     fn wx_section() -> PeSection {
         PeSection {

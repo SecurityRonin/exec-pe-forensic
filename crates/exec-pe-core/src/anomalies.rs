@@ -8,8 +8,8 @@
 //! All functions are pure (no I/O).  The caller provides a fully-parsed
 //! [`PeFile`] from [`crate::parser::parse_pe`].
 
-use forensicnomicon::report::{Category, Evidence, Location, Observation, Severity};
 use crate::parser::{PeFile, PeSection};
+use forensicnomicon::report::{Category, Evidence, Location, Observation, Severity};
 
 /// A structural anomaly found in a PE binary.
 ///
@@ -180,14 +180,19 @@ impl Observation for PeAnomaly {
             VirtualOnlySection { section_name } => {
                 format!("section '{section_name}' has zero raw size but a non-zero virtual size")
             }
-            LargeVirtualToRawRatio { section_name, ratio } => {
+            LargeVirtualToRawRatio {
+                section_name,
+                ratio,
+            } => {
                 format!("section '{section_name}' virtual size exceeds its raw size by ~{ratio}x")
             }
             TlsCallbacksPresent { count } => {
                 format!("{count} TLS callback(s) execute before the entry point")
             }
             OverlayPresent { offset, size } => {
-                format!("{size} bytes of overlay data appended after the last section at {offset:#x}")
+                format!(
+                    "{size} bytes of overlay data appended after the last section at {offset:#x}"
+                )
             }
             RichHeaderAbsent => {
                 "no Rich header in the DOS stub — consistent with anti-attribution stripping"
@@ -229,20 +234,26 @@ impl Observation for PeAnomaly {
                 format!("{entry_point_rva:#x}"),
                 Some(Location::Rva(u64::from(*entry_point_rva))),
             )],
-            LargeVirtualToRawRatio { section_name, ratio } => vec![
+            LargeVirtualToRawRatio {
+                section_name,
+                ratio,
+            } => vec![
                 ev("section", section_name.clone(), None),
                 ev("ratio", ratio.to_string(), None),
             ],
             TlsCallbacksPresent { count } => vec![ev("count", count.to_string(), None)],
             OverlayPresent { offset, size } => vec![
                 ev("size", size.to_string(), None),
-                ev("offset", format!("{offset:#x}"), Some(Location::ByteOffset(*offset))),
+                ev(
+                    "offset",
+                    format!("{offset:#x}"),
+                    Some(Location::ByteOffset(*offset)),
+                ),
             ],
             RichHeaderAbsent => Vec::new(),
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -327,7 +338,10 @@ mod tests {
     fn clean_pe_has_no_anomalies() {
         let pe = base_pe();
         let anomalies = detect_structural_anomalies(&pe);
-        assert!(anomalies.is_empty(), "clean PE should produce no anomalies, got: {anomalies:?}");
+        assert!(
+            anomalies.is_empty(),
+            "clean PE should produce no anomalies, got: {anomalies:?}"
+        );
     }
 
     #[test]
@@ -336,7 +350,9 @@ mod tests {
         pe.sections = vec![section(".rwx", 0x1000, 0x500, 0x600, true, true)];
         let anomalies = detect_structural_anomalies(&pe);
         assert!(
-            anomalies.iter().any(|a| matches!(a, PeAnomaly::WritableExecutableSection { .. })),
+            anomalies
+                .iter()
+                .any(|a| matches!(a, PeAnomaly::WritableExecutableSection { .. })),
             "W+X section must produce anomaly"
         );
     }
@@ -347,7 +363,9 @@ mod tests {
         pe.entry_point_rva = 0x9999; // outside .text at [0x1000, 0x1500)
         let anomalies = detect_structural_anomalies(&pe);
         assert!(
-            anomalies.iter().any(|a| matches!(a, PeAnomaly::EntryPointOutsideSections { .. })),
+            anomalies
+                .iter()
+                .any(|a| matches!(a, PeAnomaly::EntryPointOutsideSections { .. })),
             "EP outside sections must produce anomaly"
         );
     }
@@ -358,7 +376,9 @@ mod tests {
         pe.sections = vec![section(".bss", 0x3000, 0x1000, 0, false, true)];
         let anomalies = detect_structural_anomalies(&pe);
         assert!(
-            anomalies.iter().any(|a| matches!(a, PeAnomaly::VirtualOnlySection { .. })),
+            anomalies
+                .iter()
+                .any(|a| matches!(a, PeAnomaly::VirtualOnlySection { .. })),
             "virtual-only section must produce anomaly"
         );
     }
@@ -370,7 +390,9 @@ mod tests {
         pe.sections = vec![section(".packed", 0x1000, 100_000, 512, true, false)];
         let anomalies = detect_structural_anomalies(&pe);
         assert!(
-            anomalies.iter().any(|a| matches!(a, PeAnomaly::LargeVirtualToRawRatio { .. })),
+            anomalies
+                .iter()
+                .any(|a| matches!(a, PeAnomaly::LargeVirtualToRawRatio { .. })),
             "large v/r ratio must produce anomaly"
         );
     }
@@ -381,7 +403,9 @@ mod tests {
         pe.tls_callback_count = 3;
         let anomalies = detect_structural_anomalies(&pe);
         assert!(
-            anomalies.iter().any(|a| matches!(a, PeAnomaly::TlsCallbacksPresent { count: 3 })),
+            anomalies
+                .iter()
+                .any(|a| matches!(a, PeAnomaly::TlsCallbacksPresent { count: 3 })),
             "TLS callbacks must produce anomaly with correct count"
         );
     }
@@ -393,7 +417,13 @@ mod tests {
         pe.overlay_size = Some(512);
         let anomalies = detect_structural_anomalies(&pe);
         assert!(
-            anomalies.iter().any(|a| matches!(a, PeAnomaly::OverlayPresent { offset: 0x8000, size: 512 })),
+            anomalies.iter().any(|a| matches!(
+                a,
+                PeAnomaly::OverlayPresent {
+                    offset: 0x8000,
+                    size: 512
+                }
+            )),
             "overlay must produce anomaly with correct offset and size"
         );
     }
@@ -405,7 +435,9 @@ mod tests {
         pe.rich_header = None;
         let anomalies = detect_structural_anomalies(&pe);
         assert!(
-            anomalies.iter().any(|a| matches!(a, PeAnomaly::RichHeaderAbsent)),
+            anomalies
+                .iter()
+                .any(|a| matches!(a, PeAnomaly::RichHeaderAbsent)),
             "missing Rich header on large binary must produce anomaly"
         );
     }
@@ -418,7 +450,9 @@ mod tests {
         let anomalies = detect_structural_anomalies(&pe);
         // Should NOT produce RichHeaderAbsent for tiny files
         assert!(
-            !anomalies.iter().any(|a| matches!(a, PeAnomaly::RichHeaderAbsent)),
+            !anomalies
+                .iter()
+                .any(|a| matches!(a, PeAnomaly::RichHeaderAbsent)),
             "small binary should not flag missing Rich header"
         );
     }
@@ -430,6 +464,9 @@ mod tests {
         pe.entry_point_rva = 0xFFFF;
         pe.tls_callback_count = 1;
         let anomalies = detect_structural_anomalies(&pe);
-        assert!(anomalies.len() >= 3, "W+X + EP-outside + TLS should give ≥ 3 anomalies");
+        assert!(
+            anomalies.len() >= 3,
+            "W+X + EP-outside + TLS should give ≥ 3 anomalies"
+        );
     }
 }

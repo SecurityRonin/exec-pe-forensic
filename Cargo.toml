@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/pe-core",
-    "crates/pe-analysis",
+    "crates/exec-pe-core",
+    "crates/exec-pe-analysis",
 ]
 
 [workspace.package]
@@ -14,8 +14,8 @@ repository = "https://github.com/SecurityRonin/exec-pe-forensic"
 
 [workspace.dependencies]
 # Internal
-pe-core     = { path = "crates/pe-core" }
-pe-analysis = { path = "crates/pe-analysis" }
+exec-pe-core     = { path = "crates/exec-pe-core" }
+exec-pe-analysis = { path = "crates/exec-pe-analysis" }
 
 # Knowledge layer (sibling repo)
 forensicnomicon = "0.3.1"

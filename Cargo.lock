@@ -75,6 +75,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "exec-pe-analysis"
+version = "0.1.0"
+dependencies = [
+ "exec-pe-core",
+ "forensicnomicon",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "exec-pe-core"
+version = "0.2.0"
+dependencies = [
+ "forensicnomicon",
+ "goblin",
+ "hex",
+ "serde",
+ "sha2",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -212,29 +235,6 @@ name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
-
-[[package]]
-name = "pe-analysis"
-version = "0.1.0"
-dependencies = [
- "forensicnomicon",
- "pe-core",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "pe-core"
-version = "0.2.0"
-dependencies = [
- "forensicnomicon",
- "goblin",
- "hex",
- "serde",
- "sha2",
- "tempfile",
- "thiserror",
-]
 
 [[package]]
 name = "plain"

@@ -1,8 +1,8 @@
 //! pe-core structural anomalies normalize onto the canonical
 //! `forensicnomicon::report` model via the `Observation` producer trait.
 
+use exec_pe_core::PeAnomaly;
 use forensicnomicon::report::{Observation, Severity, Source};
-use pe_core::PeAnomaly;
 
 #[test]
 fn pe_anomaly_converts_to_a_canonical_finding() {
