@@ -14,7 +14,7 @@ repository = "https://github.com/SecurityRonin/exec-pe-forensic"
 
 [workspace.dependencies]
 # Internal
-exec-pe-core     = { path = "crates/exec-pe-core" }
+exec-pe-core     = { path = "crates/exec-pe-core", version = "0.2.0" }
 exec-pe-analysis = { path = "crates/exec-pe-analysis" }
 
 # Knowledge layer (sibling repo)
