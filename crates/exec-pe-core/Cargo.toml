@@ -1,6 +1,6 @@
 [package]
 name = "exec-pe-core"
-version = "0.2.0"
+version = "0.3.0"
 description = "PE (Portable Executable) binary format parser for forensic analysis"
 edition.workspace = true
 rust-version.workspace = true

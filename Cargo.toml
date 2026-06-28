@@ -14,11 +14,11 @@ repository = "https://github.com/SecurityRonin/exec-pe-forensic"
 
 [workspace.dependencies]
 # Internal
-exec-pe-core     = { path = "crates/exec-pe-core", version = "0.2.0" }
+exec-pe-core     = { path = "crates/exec-pe-core", version = "0.3.0" }
 exec-pe-analysis = { path = "crates/exec-pe-analysis" }
 
 # Knowledge layer (sibling repo)
-forensicnomicon = "0.3.1"
+forensicnomicon = "1"
 
 # PE parsing
 goblin = { version = "0.10", default-features = false, features = ["pe32", "pe64", "std"] }
