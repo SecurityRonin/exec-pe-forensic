@@ -84,6 +84,33 @@ pub fn extract_utf16le(bytes: &[u8], min_len: usize) -> Vec<String> {
 mod tests {
     use super::*;
 
+    // ── compute_entropy ───────────────────────────────────────────────────────
+
+    #[test]
+    fn entropy_of_empty_is_zero() {
+        assert!(compute_entropy(&[]).abs() < 1e-6);
+    }
+
+    #[test]
+    fn entropy_of_uniform_bytes_is_zero() {
+        // A single repeated symbol carries no information -> 0 bits.
+        assert!(compute_entropy(&[0x41; 64]).abs() < 1e-6);
+    }
+
+    #[test]
+    fn entropy_of_two_equiprobable_symbols_is_one_bit() {
+        // Two symbols at p=0.5 each -> exactly 1.0 bit/byte.
+        let data: Vec<u8> = (0..256u32).map(|i| (i % 2) as u8).collect();
+        assert!((compute_entropy(&data) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn entropy_of_all_256_values_is_eight_bits() {
+        // A uniform distribution over all 256 byte values -> maximal 8.0 bits.
+        let data: Vec<u8> = (0..=255u8).collect();
+        assert!((compute_entropy(&data) - 8.0).abs() < 1e-6);
+    }
+
     // ── extract_ascii ─────────────────────────────────────────────────────────
 
     #[test]

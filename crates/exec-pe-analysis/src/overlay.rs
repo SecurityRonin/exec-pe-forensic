@@ -76,10 +76,8 @@ mod tests {
         assert!(!hits.is_empty());
         let combined = [hits[0].description.as_str(), &hits[0].evidence.join(" ")].join(" ");
         assert!(
-            combined.contains("2048")
-                || combined.contains("2 KiB")
-                || combined.contains("2048 bytes"),
-            "description or evidence must mention overlay size"
+            combined.contains("2048 bytes"),
+            "description or evidence must mention overlay size, got: {combined}"
         );
     }
 }
