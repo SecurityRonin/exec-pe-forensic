@@ -54,7 +54,7 @@ mod tests {
         let pe = make_pe_with_tls(4);
         let hits = detect_tls_callbacks(&pe);
         assert!(!hits.is_empty());
-        assert!(hits[0].description.contains("4"));
+        assert!(hits[0].description.contains('4'));
     }
 
     #[test]
@@ -75,7 +75,7 @@ mod tests {
         let hits = detect_tls_callbacks(&pe);
         assert!(!hits.is_empty());
         assert!(
-            hits[0].evidence.iter().any(|e| e.contains("3")),
+            hits[0].evidence.iter().any(|e| e.contains('3')),
             "evidence must mention the number of callbacks"
         );
     }

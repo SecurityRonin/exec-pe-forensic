@@ -103,7 +103,7 @@ mod tests {
         assert!(!hits.is_empty());
         let combined = [hits[0].description.as_str(), &hits[0].evidence.join(" ")].join(" ");
         assert!(
-            combined.contains("4"),
+            combined.contains('4'),
             "evidence or description must mention the callback count (4)"
         );
     }

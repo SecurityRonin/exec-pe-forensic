@@ -75,9 +75,9 @@ pub fn detect_structural_anomalies(pe: &PeFile) -> Vec<PeAnomaly> {
             });
         }
 
-        // Large virtual/raw ratio (> 10×) — indicates decompression
-        if sec.raw_size > 0 {
-            let ratio = sec.virtual_size / sec.raw_size;
+        // Large virtual/raw ratio (> 10×) — indicates decompression.
+        // `checked_div` yields `None` when raw_size == 0 (skipping div-by-zero).
+        if let Some(ratio) = sec.virtual_size.checked_div(sec.raw_size) {
             if ratio > 10 {
                 out.push(PeAnomaly::LargeVirtualToRawRatio {
                     section_name: sec.name.clone(),
@@ -88,12 +88,13 @@ pub fn detect_structural_anomalies(pe: &PeFile) -> Vec<PeAnomaly> {
     }
 
     // Entry point outside all sections (only meaningful when sections exist and EP is non-zero)
-    if pe.entry_point_rva > 0 && !pe.sections.is_empty() {
-        if !entry_point_in_section(pe.entry_point_rva, &pe.sections) {
-            out.push(PeAnomaly::EntryPointOutsideSections {
-                entry_point_rva: pe.entry_point_rva,
-            });
-        }
+    if pe.entry_point_rva > 0
+        && !pe.sections.is_empty()
+        && !entry_point_in_section(pe.entry_point_rva, &pe.sections)
+    {
+        out.push(PeAnomaly::EntryPointOutsideSections {
+            entry_point_rva: pe.entry_point_rva,
+        });
     }
 
     // TLS callbacks registered

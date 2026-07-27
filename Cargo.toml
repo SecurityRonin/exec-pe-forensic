@@ -7,7 +7,9 @@ members = [
 
 [workspace.package]
 edition = "2021"
-rust-version = "1.80"
+# True MSRV floor: goblin 0.10 → scroll_derive 0.13.x is edition-2024 (needs 1.85);
+# pulled transitively by exec-pe-core. 1.84 fails to build; 1.85 is the honest floor.
+rust-version = "1.85"
 license = "Apache-2.0"
 authors = ["Albert Hui <albert@securityronin.com>"]
 repository = "https://github.com/SecurityRonin/exec-pe-forensic"
@@ -41,6 +43,24 @@ tempfile = "3"
 unsafe_code = "deny"
 
 [workspace.lints.clippy]
-all      = { level = "warn", priority = -1 }
-pedantic = { level = "warn", priority = -1 }
-unwrap_used = "deny"
+all         = { level = "warn", priority = -1 }
+pedantic    = { level = "warn", priority = -1 }
+correctness = "deny"
+suspicious  = "deny"
+# Untrusted-input parser: keep the panic-free denies in production
+# (tests opt out via #![cfg_attr(test, allow(...))] in each lib.rs).
+unwrap_used = { level = "deny", priority = 0 }
+expect_used = { level = "deny", priority = 0 }
+# Pragmatic allows (priority 1) — silence pedantic noise that isn't a real defect:
+module_name_repetitions  = { level = "allow", priority = 1 }
+must_use_candidate       = { level = "allow", priority = 1 }
+missing_errors_doc       = { level = "allow", priority = 1 }
+missing_panics_doc       = { level = "allow", priority = 1 }
+cast_possible_truncation = { level = "allow", priority = 1 }
+cast_possible_wrap       = { level = "allow", priority = 1 }
+cast_sign_loss           = { level = "allow", priority = 1 }
+cast_precision_loss      = { level = "allow", priority = 1 }
+# Style pedantic lints kept as pragmatic allows (not correctness):
+too_many_lines           = { level = "allow", priority = 1 }
+struct_excessive_bools   = { level = "allow", priority = 1 }
+items_after_statements   = { level = "allow", priority = 1 }

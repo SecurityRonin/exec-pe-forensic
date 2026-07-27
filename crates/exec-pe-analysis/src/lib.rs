@@ -9,6 +9,7 @@
     clippy::missing_panics_doc,
     clippy::must_use_candidate
 )]
+#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod anomalies;
 pub mod anti_debug;
@@ -191,7 +192,7 @@ mod tests {
         let hits = detect_all(&pe);
         let ids: Vec<_> = hits.iter().map(|h| h.mitre_technique_id).collect();
         let mut sorted = ids.clone();
-        sorted.sort();
+        sorted.sort_unstable();
         assert_eq!(ids, sorted, "detect_all results must be sorted by MITRE ID");
     }
 

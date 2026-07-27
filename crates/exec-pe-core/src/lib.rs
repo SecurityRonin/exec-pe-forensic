@@ -23,6 +23,7 @@
     clippy::cast_sign_loss,
     clippy::cast_precision_loss
 )]
+#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod anomalies;
 pub mod error;

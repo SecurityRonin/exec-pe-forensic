@@ -199,7 +199,7 @@ pub fn parse_pe(bytes: &[u8]) -> Result<PeFile, PeError> {
         .sections
         .iter()
         .filter(|s| s.size_of_raw_data > 0)
-        .map(|s| s.pointer_to_raw_data as u64 + s.size_of_raw_data as u64)
+        .map(|s| u64::from(s.pointer_to_raw_data) + u64::from(s.size_of_raw_data))
         .max()
         .unwrap_or(0);
     let file_size = bytes.len() as u64;
@@ -269,10 +269,8 @@ pub(crate) mod test_helpers {
         pe[0x45] = 0x86; // Machine = AMD64
         pe[0x48..0x4C].copy_from_slice(&timestamp.to_le_bytes()); // TimeDateStamp
         pe[0x54] = 0xF0; // SizeOfOptionalHeader = 240
-                         // Characteristics: bit 1 = EXE, bit 5 = large addr, bit 13 = DLL
-        pe[0x56] = if is_dll { 0x22 | 0x20 } else { 0x22 }; // 0x22 = exe+large, 0x20 = DLL... wait
-                                                            // Actually: IMAGE_FILE_EXECUTABLE_IMAGE = 0x0002, IMAGE_FILE_LARGE_ADDRESS_AWARE = 0x0020
-                                                            // IMAGE_FILE_DLL = 0x2000
+                         // Characteristics: IMAGE_FILE_EXECUTABLE_IMAGE = 0x0002,
+                         // IMAGE_FILE_LARGE_ADDRESS_AWARE = 0x0020, IMAGE_FILE_DLL = 0x2000
         if is_dll {
             let chars: u16 = 0x2022; // DLL | EXECUTABLE | LARGE_ADDRESS_AWARE
             pe[0x56..0x58].copy_from_slice(&chars.to_le_bytes());

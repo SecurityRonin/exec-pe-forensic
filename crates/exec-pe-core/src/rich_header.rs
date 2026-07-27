@@ -120,7 +120,6 @@ pub(crate) fn find_pattern(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 
 #[cfg(test)]
 pub(crate) mod test_helpers {
-    use super::*;
 
     /// Build raw bytes containing a valid Rich header in the DOS stub area.
     ///
@@ -138,7 +137,7 @@ pub(crate) mod test_helpers {
         }
         // Entries
         for &(prod, build, count) in entries {
-            let comp_id = ((prod as u32) << 16) | (build as u32);
+            let comp_id = (u32::from(prod) << 16) | u32::from(build);
             stub.extend_from_slice(&(comp_id ^ xor_key).to_le_bytes());
             stub.extend_from_slice(&(count ^ xor_key).to_le_bytes());
         }
