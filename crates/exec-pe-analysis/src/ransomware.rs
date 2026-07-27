@@ -67,7 +67,7 @@ pub fn detect_ransom_note_filenames(pe: &PeFile) -> Vec<PeDetection> {
 }
 
 fn string_basename(s: &str) -> &str {
-    s.rsplit(|c| c == '\\' || c == '/').next().unwrap_or(s)
+    s.rsplit(['\\', '/']).next().unwrap_or(s)
 }
 
 #[cfg(test)]

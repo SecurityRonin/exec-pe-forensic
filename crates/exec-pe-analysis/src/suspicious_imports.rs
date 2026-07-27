@@ -25,7 +25,7 @@ pub fn detect_suspicious_imports(pe: &PeFile) -> Vec<PeDetection> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_helpers::{make_pe, make_section};
+    use crate::test_helpers::make_pe;
 
     #[test]
     fn virtualalloc_detected() {

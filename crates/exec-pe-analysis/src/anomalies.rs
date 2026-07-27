@@ -132,12 +132,87 @@ mod tests {
         pe.rich_header = None;
         pe.size = 1024 * 1024; // 1 MiB — above the 4 KiB threshold
         let hits = detect_pe_anomalies(&pe);
+        // Both the description and the evidence must name the missing Rich header;
+        // asserting each independently exercises both mapping arms.
         assert!(
-            hits.iter().any(|h| {
-                h.description.to_lowercase().contains("rich")
-                    || h.evidence.iter().any(|e| e.to_lowercase().contains("rich"))
-            }),
-            "must detect absent Rich header on large binary"
+            hits.iter()
+                .any(|h| h.description.to_lowercase().contains("rich")),
+            "description must name the absent Rich header"
+        );
+        assert!(
+            hits.iter()
+                .any(|h| h.evidence.iter().any(|e| e.to_lowercase().contains("rich"))),
+            "evidence must name the absent Rich header"
+        );
+    }
+
+    /// A raw-size-0, virtual-size-positive section maps to the virtual-only note.
+    fn virtual_only_section() -> PeSection {
+        PeSection {
+            name: ".vonly".to_string(),
+            virtual_size: 0x1000,
+            raw_size: 0,
+            virtual_address: 0x1000,
+            entropy: 5.0,
+            is_executable: false,
+            is_writable: false,
+            is_readable: true,
+        }
+    }
+
+    #[test]
+    fn virtual_only_section_description() {
+        let pe = make_pe(&[], vec![virtual_only_section()], &[]);
+        let hits = detect_pe_anomalies(&pe);
+        assert!(
+            hits.iter()
+                .any(|h| h.description.contains(".vonly") && h.description.contains("raw size")),
+            "virtual-only section must be described"
+        );
+    }
+
+    #[test]
+    fn large_virtual_to_raw_ratio_description() {
+        let sec = PeSection {
+            name: ".packed".to_string(),
+            virtual_size: 100_000,
+            raw_size: 512,
+            virtual_address: 0x1000,
+            entropy: 7.9,
+            is_executable: true,
+            is_writable: false,
+            is_readable: true,
+        };
+        let pe = make_pe(&[], vec![sec], &[]);
+        let hits = detect_pe_anomalies(&pe);
+        assert!(
+            hits.iter()
+                .any(|h| h.description.contains(".packed") && h.description.contains("ratio")),
+            "large virtual/raw ratio must be described"
+        );
+    }
+
+    #[test]
+    fn tls_callbacks_description() {
+        let mut pe = make_pe(&[], vec![make_section(".text", 5.0, true)], &[]);
+        pe.tls_callback_count = 2;
+        let hits = detect_pe_anomalies(&pe);
+        assert!(
+            hits.iter().any(|h| h.description.contains("TLS callback")),
+            "TLS callbacks must be described"
+        );
+    }
+
+    #[test]
+    fn overlay_description() {
+        let mut pe = make_pe(&[], vec![make_section(".text", 5.0, true)], &[]);
+        pe.overlay_offset = Some(0x8000);
+        pe.overlay_size = Some(4096);
+        let hits = detect_pe_anomalies(&pe);
+        assert!(
+            hits.iter()
+                .any(|h| h.description.contains("Overlay") && h.description.contains("4096")),
+            "overlay must be described with its size"
         );
     }
 }

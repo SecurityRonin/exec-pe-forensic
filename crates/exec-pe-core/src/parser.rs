@@ -199,7 +199,7 @@ pub fn parse_pe(bytes: &[u8]) -> Result<PeFile, PeError> {
         .sections
         .iter()
         .filter(|s| s.size_of_raw_data > 0)
-        .map(|s| s.pointer_to_raw_data as u64 + s.size_of_raw_data as u64)
+        .map(|s| u64::from(s.pointer_to_raw_data) + u64::from(s.size_of_raw_data))
         .max()
         .unwrap_or(0);
     let file_size = bytes.len() as u64;
@@ -269,10 +269,8 @@ pub(crate) mod test_helpers {
         pe[0x45] = 0x86; // Machine = AMD64
         pe[0x48..0x4C].copy_from_slice(&timestamp.to_le_bytes()); // TimeDateStamp
         pe[0x54] = 0xF0; // SizeOfOptionalHeader = 240
-                         // Characteristics: bit 1 = EXE, bit 5 = large addr, bit 13 = DLL
-        pe[0x56] = if is_dll { 0x22 | 0x20 } else { 0x22 }; // 0x22 = exe+large, 0x20 = DLL... wait
-                                                            // Actually: IMAGE_FILE_EXECUTABLE_IMAGE = 0x0002, IMAGE_FILE_LARGE_ADDRESS_AWARE = 0x0020
-                                                            // IMAGE_FILE_DLL = 0x2000
+                         // Characteristics: IMAGE_FILE_EXECUTABLE_IMAGE = 0x0002,
+                         // IMAGE_FILE_LARGE_ADDRESS_AWARE = 0x0020, IMAGE_FILE_DLL = 0x2000
         if is_dll {
             let chars: u16 = 0x2022; // DLL | EXECUTABLE | LARGE_ADDRESS_AWARE
             pe[0x56..0x58].copy_from_slice(&chars.to_le_bytes());
@@ -525,5 +523,106 @@ mod tests {
         let bytes = make_minimal_pe_x64(0, false);
         let pe = parse_pe(&bytes).expect("minimal PE");
         assert!(pe.rich_header.is_none());
+    }
+
+    // ── section / overlay / debug / no-optional-header extraction ──────────────
+
+    /// Write a 40-byte section header at the section table (0x148, immediately
+    /// after the 240-byte PE32+ optional header) into a minimal PE.
+    fn write_section(
+        pe: &mut [u8],
+        name: &[u8],
+        virtual_size: u32,
+        virtual_address: u32,
+        raw_size: u32,
+        raw_ptr: u32,
+        characteristics: u32,
+    ) {
+        let sh = 0x148;
+        pe[sh..sh + name.len()].copy_from_slice(name);
+        pe[sh + 0x08..sh + 0x0C].copy_from_slice(&virtual_size.to_le_bytes());
+        pe[sh + 0x0C..sh + 0x10].copy_from_slice(&virtual_address.to_le_bytes());
+        pe[sh + 0x10..sh + 0x14].copy_from_slice(&raw_size.to_le_bytes());
+        pe[sh + 0x14..sh + 0x18].copy_from_slice(&raw_ptr.to_le_bytes());
+        pe[sh + 0x24..sh + 0x28].copy_from_slice(&characteristics.to_le_bytes());
+    }
+
+    #[test]
+    fn section_fields_and_overlay_extracted() {
+        // One executable section [raw 0x200..0x300) plus 16 trailing overlay bytes.
+        let mut pe = make_minimal_pe_x64(0, false);
+        pe[0x46] = 1; // NumberOfSections = 1
+        pe[0x90] = 0x00;
+        pe[0x91] = 0x20; // SizeOfImage = 0x2000
+        write_section(&mut pe, b".text", 0x100, 0x1000, 0x100, 0x200, 0x6000_0020);
+        pe.resize(0x300, 0); // section raw data
+        pe.extend_from_slice(&[0xAA; 0x10]); // overlay
+
+        let parsed = parse_pe(&pe).expect("section-bearing PE");
+        assert_eq!(parsed.sections.len(), 1);
+        let sec = &parsed.sections[0];
+        assert_eq!(sec.name, ".text");
+        assert_eq!(sec.virtual_address, 0x1000);
+        assert_eq!(sec.raw_size, 0x100);
+        assert!(sec.is_executable);
+        assert!(sec.is_readable);
+        assert!(!sec.is_writable);
+        // Overlay begins right after the last section's raw data.
+        assert_eq!(parsed.overlay_offset, Some(0x300));
+        assert_eq!(parsed.overlay_size, Some(0x10));
+    }
+
+    #[test]
+    fn pe_without_optional_header_defaults_entry_base_checksum_to_zero() {
+        // A PE with SizeOfOptionalHeader = 0 parses without an optional header;
+        // entry-point / image-base / checksum then fall back to zero.
+        let mut pe = make_minimal_pe_x64(0, false);
+        pe[0x54] = 0;
+        pe[0x55] = 0; // SizeOfOptionalHeader = 0
+        for b in &mut pe[0x58..0x148] {
+            *b = 0;
+        }
+        let parsed = parse_pe(&pe).expect("PE with no optional header");
+        assert_eq!(parsed.entry_point_rva, 0);
+        assert_eq!(parsed.image_base, 0);
+        assert_eq!(parsed.checksum, 0);
+    }
+
+    #[test]
+    fn pdb_path_extracted_from_codeview_debug_directory() {
+        // Build a .rdata section holding an IMAGE_DEBUG_DIRECTORY (Type=CODEVIEW)
+        // that points at an RSDS CV_INFO_PDB70 record carrying the PDB path.
+        let mut pe = make_minimal_pe_x64(0, false);
+        pe[0x46] = 1;
+        pe[0x90] = 0x00;
+        pe[0x91] = 0x20; // SizeOfImage = 0x2000
+        write_section(&mut pe, b".rdata", 0x200, 0x1000, 0x200, 0x200, 0x4000_0040);
+        // Data directory[6] (DEBUG): RVA 0x1000, size 28 (one debug dir entry).
+        let dd = 0xC8 + 6 * 8;
+        pe[dd..dd + 4].copy_from_slice(&0x1000u32.to_le_bytes());
+        pe[dd + 4..dd + 8].copy_from_slice(&28u32.to_le_bytes());
+        pe.resize(0x400, 0);
+
+        // IMAGE_DEBUG_DIRECTORY at file 0x200 (RVA 0x1000).
+        let d = 0x200;
+        pe[d + 12..d + 16].copy_from_slice(&2u32.to_le_bytes()); // Type = CODEVIEW
+        let cv_rva = 0x1000u32 + 28;
+        let cv_ptr = 0x200u32 + 28;
+        pe[d + 16..d + 20].copy_from_slice(&64u32.to_le_bytes()); // SizeOfData (covers full path)
+        pe[d + 20..d + 24].copy_from_slice(&cv_rva.to_le_bytes()); // AddressOfRawData
+        pe[d + 24..d + 28].copy_from_slice(&cv_ptr.to_le_bytes()); // PointerToRawData
+
+        // CV_INFO_PDB70 at file 0x21C: "RSDS" + GUID(16) + Age(4) + NUL-term path.
+        let c = 0x21C;
+        pe[c..c + 4].copy_from_slice(&0x5344_5352u32.to_le_bytes()); // "RSDS"
+        for (i, b) in pe[c + 4..c + 20].iter_mut().enumerate() {
+            *b = i as u8; // GUID bytes
+        }
+        pe[c + 20..c + 24].copy_from_slice(&1u32.to_le_bytes()); // Age
+        let name = b"C:\\build\\payload.pdb\0";
+        pe[c + 24..c + 24 + name.len()].copy_from_slice(name);
+
+        let parsed = parse_pe(&pe).expect("PE with CodeView debug dir");
+        assert_eq!(parsed.pdb_path.as_deref(), Some("C:\\build\\payload.pdb"));
     }
 }

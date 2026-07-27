@@ -13,9 +13,8 @@ use crate::{PeDetection, PeDetectionKind};
 ///
 /// Returns a single detection when `pe.overlay_offset` is `Some`.
 pub fn detect_overlay(pe: &PeFile) -> Vec<PeDetection> {
-    let (offset, size) = match (pe.overlay_offset, pe.overlay_size) {
-        (Some(off), Some(sz)) => (off, sz),
-        _ => return vec![],
+    let (Some(offset), Some(size)) = (pe.overlay_offset, pe.overlay_size) else {
+        return vec![];
     };
     vec![PeDetection {
         kind: PeDetectionKind::OverlayDetected,
@@ -77,10 +76,8 @@ mod tests {
         assert!(!hits.is_empty());
         let combined = [hits[0].description.as_str(), &hits[0].evidence.join(" ")].join(" ");
         assert!(
-            combined.contains("2048")
-                || combined.contains("2 KiB")
-                || combined.contains("2048 bytes"),
-            "description or evidence must mention overlay size"
+            combined.contains("2048 bytes"),
+            "description or evidence must mention overlay size, got: {combined}"
         );
     }
 }

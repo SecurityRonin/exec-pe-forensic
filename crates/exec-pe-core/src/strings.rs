@@ -36,7 +36,7 @@ pub fn extract_ascii(bytes: &[u8], min_len: usize) -> Vec<String> {
     let mut results = Vec::new();
     let mut current = String::new();
     for &b in bytes {
-        if b >= 0x20 && b <= 0x7E {
+        if (0x20..=0x7E).contains(&b) {
             current.push(b as char);
         } else {
             if current.len() >= min_len {
@@ -63,7 +63,7 @@ pub fn extract_utf16le(bytes: &[u8], min_len: usize) -> Vec<String> {
     while i + 1 < bytes.len() {
         let lo = bytes[i];
         let hi = bytes[i + 1];
-        if hi == 0x00 && lo >= 0x20 && lo <= 0x7E {
+        if hi == 0x00 && (0x20..=0x7E).contains(&lo) {
             current.push(lo as char);
             i += 2;
         } else {
@@ -83,6 +83,33 @@ pub fn extract_utf16le(bytes: &[u8], min_len: usize) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── compute_entropy ───────────────────────────────────────────────────────
+
+    #[test]
+    fn entropy_of_empty_is_zero() {
+        assert!(compute_entropy(&[]).abs() < 1e-6);
+    }
+
+    #[test]
+    fn entropy_of_uniform_bytes_is_zero() {
+        // A single repeated symbol carries no information -> 0 bits.
+        assert!(compute_entropy(&[0x41; 64]).abs() < 1e-6);
+    }
+
+    #[test]
+    fn entropy_of_two_equiprobable_symbols_is_one_bit() {
+        // Two symbols at p=0.5 each -> exactly 1.0 bit/byte.
+        let data: Vec<u8> = (0..256u32).map(|i| (i % 2) as u8).collect();
+        assert!((compute_entropy(&data) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn entropy_of_all_256_values_is_eight_bits() {
+        // A uniform distribution over all 256 byte values -> maximal 8.0 bits.
+        let data: Vec<u8> = (0..=255u8).collect();
+        assert!((compute_entropy(&data) - 8.0).abs() < 1e-6);
+    }
 
     // ── extract_ascii ─────────────────────────────────────────────────────────
 
@@ -141,10 +168,7 @@ mod tests {
     #[test]
     fn utf16le_extracts_simple_string() {
         // "Hello" as UTF-16LE
-        let input: Vec<u8> = "Hello!"
-            .encode_utf16()
-            .flat_map(|c| c.to_le_bytes())
-            .collect();
+        let input: Vec<u8> = "Hello!".encode_utf16().flat_map(u16::to_le_bytes).collect();
         let strings = extract_utf16le(&input, 6);
         assert!(
             strings.contains(&"Hello!".to_string()),
@@ -160,7 +184,7 @@ mod tests {
     #[test]
     fn utf16le_skips_short_runs() {
         // "AB" as UTF-16LE — only 2 chars, below min_len
-        let input: Vec<u8> = "AB".encode_utf16().flat_map(|c| c.to_le_bytes()).collect();
+        let input: Vec<u8> = "AB".encode_utf16().flat_map(u16::to_le_bytes).collect();
         let strings = extract_utf16le(&input, 6);
         assert!(
             strings.iter().all(|s| s.len() >= 6),
@@ -171,7 +195,7 @@ mod tests {
     #[test]
     fn utf16le_mixed_with_binary_extracts_only_strings() {
         let mut buf: Vec<u8> = vec![0xDE, 0xAD, 0xBE, 0xEF];
-        buf.extend("VirtualAlloc".encode_utf16().flat_map(|c| c.to_le_bytes()));
+        buf.extend("VirtualAlloc".encode_utf16().flat_map(u16::to_le_bytes));
         buf.extend_from_slice(&[0xFF, 0xFE]);
         let strings = extract_utf16le(&buf, 6);
         assert!(strings.contains(&"VirtualAlloc".to_string()));

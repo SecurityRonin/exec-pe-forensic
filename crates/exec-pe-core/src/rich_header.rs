@@ -75,7 +75,7 @@ pub fn parse_rich_header(bytes: &[u8]) -> Option<RichHeader> {
                 dans_rel = Some(i);
                 break;
             }
-        }
+        } // cov:unreachable: while-guard i+4 <= rich_rel, and rich_rel+4 <= stub_area.len() (find_pattern of a 4-byte needle), so read_u32_le is always Some here
         i += 4;
     }
     let dans_rel = dans_rel?;
@@ -120,7 +120,6 @@ pub(crate) fn find_pattern(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 
 #[cfg(test)]
 pub(crate) mod test_helpers {
-    use super::*;
 
     /// Build raw bytes containing a valid Rich header in the DOS stub area.
     ///
@@ -138,7 +137,7 @@ pub(crate) mod test_helpers {
         }
         // Entries
         for &(prod, build, count) in entries {
-            let comp_id = ((prod as u32) << 16) | (build as u32);
+            let comp_id = (u32::from(prod) << 16) | u32::from(build);
             stub.extend_from_slice(&(comp_id ^ xor_key).to_le_bytes());
             stub.extend_from_slice(&(count ^ xor_key).to_le_bytes());
         }
@@ -228,5 +227,60 @@ mod tests {
         let buf = make_pe_with_rich(&[(1, 2, 3)], expected_key);
         let rh = parse_rich_header(&buf).unwrap();
         assert_eq!(rh.xor_key, expected_key);
+    }
+
+    const DANS: u32 = 0x536E_6144;
+
+    /// Wrap a hand-built stub area (bytes from 0x40) into an MZ buffer whose
+    /// `e_lfanew` points just past it at a `PE\0\0` signature.
+    fn wrap_stub(stub: &[u8]) -> Vec<u8> {
+        let e_lfanew = 0x40 + stub.len() as u32;
+        let mut buf = vec![0u8; e_lfanew as usize + 4];
+        buf[0] = b'M';
+        buf[1] = b'Z';
+        buf[0x3C..0x40].copy_from_slice(&e_lfanew.to_le_bytes());
+        buf[0x40..e_lfanew as usize].copy_from_slice(stub);
+        buf[e_lfanew as usize..].copy_from_slice(b"PE\0\0");
+        buf
+    }
+
+    #[test]
+    fn dans_marker_found_after_leading_junk_dword() {
+        // A non-DanS DWORD precedes DanS, so the scan must advance past it (the
+        // no-match branch of the DanS search) before matching.
+        let key = 0x1122_3344_u32;
+        let mut stub = Vec::new();
+        stub.extend_from_slice(&0u32.to_le_bytes()); // 0 ^ key = key != DanS
+        stub.extend_from_slice(&(DANS ^ key).to_le_bytes()); // DanS at rel 4
+        for _ in 0..3 {
+            stub.extend_from_slice(&key.to_le_bytes()); // 3 padding DWORDs
+        }
+        let comp_id = (0x0103u32 << 16) | 0x6B6B;
+        stub.extend_from_slice(&(comp_id ^ key).to_le_bytes());
+        stub.extend_from_slice(&(7u32 ^ key).to_le_bytes());
+        stub.extend_from_slice(b"Rich");
+        stub.extend_from_slice(&key.to_le_bytes());
+
+        let rh = parse_rich_header(&wrap_stub(&stub)).expect("DanS found after junk");
+        assert_eq!(rh.xor_key, key);
+        assert_eq!(rh.entries.len(), 1);
+        assert_eq!(rh.entries[0].product_id, 0x0103);
+        assert_eq!(rh.entries[0].use_count, 7);
+    }
+
+    #[test]
+    fn dans_immediately_before_rich_yields_empty_entries() {
+        // DanS sits right before "Rich": entries_start (dans_rel + 16) exceeds the
+        // "Rich" position, so the header parses as valid-but-empty rather than
+        // reading past it.
+        let key = 0xAABB_CCDD_u32;
+        let mut stub = Vec::new();
+        stub.extend_from_slice(&(DANS ^ key).to_le_bytes()); // DanS at rel 0
+        stub.extend_from_slice(b"Rich"); // rich_rel = 4 < entries_start (16)
+        stub.extend_from_slice(&key.to_le_bytes());
+
+        let rh = parse_rich_header(&wrap_stub(&stub)).expect("empty-but-valid Rich header");
+        assert!(rh.entries.is_empty());
+        assert_eq!(rh.xor_key, key);
     }
 }
