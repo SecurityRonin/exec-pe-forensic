@@ -1,0 +1,25 @@
+# gitleaks configuration — extends the default ruleset and allowlists one known
+# false positive.
+#
+# The only finding is a Rich-header XOR key in a TEST FIXTURE:
+#
+#   crates/pe-core/src/rich_header.rs
+#   let key = 0x1234_5678_u32;
+#
+# PE Rich headers are XOR-obfuscated with a per-binary key, so a parser's tests
+# must construct one. `0x12345678` is the canonical placeholder — it is not a
+# credential, it is the input the test decodes. gitleaks' generic-api-key rule
+# fires on entropy alone (3.51) and cannot tell a domain constant from a token.
+#
+# Scoped to that exact literal rather than to the file or the rule, so any real
+# secret in this repo — including a future one in the same file — still surfaces.
+# A blanket `generic-api-key` suppression would turn the gate off for the whole
+# repository to excuse one hex constant.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "PE Rich-header XOR key used to build test fixtures is not a secret"
+regexes = [
+  '''0x1234_5678_u32''',
+]
