@@ -28,7 +28,7 @@ pub struct PeFile {
     pub checksum: u32,
 
     // ── Data-directory presence flags ─────────────────────────────────────────
-    /// True when the CLR runtime header (directory[14]) is present — the binary is a .NET assembly.
+    /// True when the CLR runtime header (`directory[14]`) is present — the binary is a .NET assembly.
     pub is_dotnet: bool,
     /// Number of TLS callback functions registered.  > 0 means code runs before the entry point.
     pub tls_callback_count: usize,
