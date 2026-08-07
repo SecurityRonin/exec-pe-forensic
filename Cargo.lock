@@ -76,7 +76,7 @@ dependencies = [
 
 [[package]]
 name = "exec-pe-analysis"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "exec-pe-core",
  "forensicnomicon",
@@ -86,7 +86,7 @@ dependencies = [
 
 [[package]]
 name = "exec-pe-core"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "forensicnomicon",
  "goblin",
